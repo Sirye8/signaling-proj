@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.guc_proj.signaling_proj" />
+                  <option name="mobileSdkAppId" value="1:311134497397:android:d34ba831576acb1888a63c" />
+                  <option name="projectId" value="signaling-proj" />
+                  <option name="projectNumber" value="311134497397" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

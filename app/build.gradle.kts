@@ -10,6 +10,10 @@ android {
         version = release(36)
     }
 
+    buildFeatures {
+        viewBinding = true
+    }
+
     defaultConfig {
         applicationId = "com.guc_proj.signaling_proj"
         minSdk = 24
