@@ -1,7 +1,9 @@
 package com.guc_proj.signaling_proj
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
@@ -12,6 +14,7 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var binding: ActivityProfileBinding
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
+    private var currentUserUid: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,17 +25,27 @@ class ProfileActivity : AppCompatActivity() {
         val currentUser = auth.currentUser
 
         if (currentUser == null) {
-            // Should not happen if logic is correct, but as a safeguard
+            startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
         }
 
-        database = FirebaseDatabase.getInstance().getReference("Users").child(currentUser.uid)
+        currentUserUid = currentUser.uid
+        binding.emailEditText.setText(currentUser.email)
+        database = FirebaseDatabase.getInstance().getReference("Users").child(currentUserUid!!)
 
         fetchUserData()
 
         binding.saveChangesButton.setOnClickListener {
             updateUserData()
+        }
+
+        binding.logoutButton.setOnClickListener {
+            logoutUser()
+        }
+
+        binding.deleteUserButton.setOnClickListener {
+            showDeleteConfirmationDialog()
         }
     }
 
@@ -48,7 +61,7 @@ class ProfileActivity : AppCompatActivity() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(baseContext, "Failed to load data.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(baseContext, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
             }
         })
     }
@@ -66,9 +79,51 @@ class ProfileActivity : AppCompatActivity() {
 
         database.updateChildren(userUpdates).addOnCompleteListener { task ->
             if (task.isSuccessful) {
-                Toast.makeText(this, "Profile updated!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Update failed.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Failed to update profile.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun logoutUser() {
+        auth.signOut()
+        val intent = Intent(this, LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Account")
+            .setMessage("Are you sure you want to delete your account? This action cannot be undone.")
+            .setPositiveButton("Delete") { _, _ ->
+                deleteUserAccount()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun deleteUserAccount() {
+        val user = auth.currentUser
+        if (user != null && currentUserUid != null) {
+            // 1. Delete user data from Realtime Database
+            database.removeValue().addOnCompleteListener { dbTask ->
+                if (dbTask.isSuccessful) {
+                    // 2. Delete user from Authentication
+                    user.delete().addOnCompleteListener { authTask ->
+                        if (authTask.isSuccessful) {
+                            Toast.makeText(this, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
+                            logoutUser() // Reuse logout logic to navigate
+                        } else {
+                            Toast.makeText(this, "Failed to delete account: ${authTask.exception?.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    Toast.makeText(this, "Failed to delete user data: ${dbTask.exception?.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }

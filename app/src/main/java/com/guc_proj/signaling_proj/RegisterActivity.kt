@@ -23,6 +23,12 @@ class RegisterActivity : AppCompatActivity() {
         binding.registerButton.setOnClickListener {
             registerUser()
         }
+
+        // ADD THIS CLICK LISTENER
+        binding.loginTextView.setOnClickListener {
+            // Finish the current activity to go back to the Login screen
+            finish()
+        }
     }
 
     private fun registerUser() {
