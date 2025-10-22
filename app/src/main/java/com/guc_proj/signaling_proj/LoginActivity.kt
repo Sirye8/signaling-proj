@@ -5,6 +5,10 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.guc_proj.signaling_proj.databinding.ActivityLoginBinding
 
 class LoginActivity : AppCompatActivity() {
@@ -18,6 +22,11 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         auth = FirebaseAuth.getInstance()
+
+        // Check if user is already logged in
+        if (auth.currentUser != null) {
+            redirectUser(auth.currentUser!!.uid)
+        }
 
         binding.loginButton.setOnClickListener {
             loginUser()
@@ -40,11 +49,53 @@ class LoginActivity : AppCompatActivity() {
         auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
-                startActivity(Intent(this, ProfileActivity::class.java))
-                finish() // Prevents user from going back to login screen
+                // Redirect based on role after successful login
+                redirectUser(auth.currentUser!!.uid)
             } else {
                 Toast.makeText(this, "Login failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    /**
+     * Reads the user's role from Firebase and redirects to the appropriate home activity.
+     */
+    private fun redirectUser(userId: String) {
+        val userRef = FirebaseDatabase.getInstance().getReference("Users").child(userId)
+
+        userRef.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists()) {
+                    // Handle case where user exists in Auth but not in Database (rare)
+                    Toast.makeText(this@LoginActivity, "User data not found. Please register again.", Toast.LENGTH_LONG).show()
+                    auth.signOut() // Log out the user
+                    return
+                }
+
+                val user = snapshot.getValue(User::class.java)
+                val role = user?.role
+
+                val homeIntent: Intent = when (role) {
+                    "Buyer" -> Intent(this@LoginActivity, BuyerHomeActivity::class.java)
+                    "Seller" -> Intent(this@LoginActivity, SellerHomeActivity::class.java)
+                    else -> {
+                        // Handle invalid or missing role
+                        Toast.makeText(this@LoginActivity, "User role is invalid or missing. Logging out.", Toast.LENGTH_LONG).show()
+                        auth.signOut()
+                        return // Stop execution
+                    }
+                }
+
+                // Clear back stack and start the appropriate home activity
+                homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(homeIntent)
+                finish() // Close LoginActivity
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Toast.makeText(this@LoginActivity, "Failed to read user role: ${error.message}", Toast.LENGTH_SHORT).show()
+                auth.signOut() // Log out on error
+            }
+        })
     }
 }

@@ -24,10 +24,8 @@ class RegisterActivity : AppCompatActivity() {
             registerUser()
         }
 
-        // ADD THIS CLICK LISTENER
         binding.loginTextView.setOnClickListener {
-            // Finish the current activity to go back to the Login screen
-            finish()
+            finish() // Go back to LoginActivity
         }
     }
 
@@ -37,6 +35,14 @@ class RegisterActivity : AppCompatActivity() {
         val email = binding.emailEditText.text.toString().trim()
         val password = binding.passwordEditText.text.toString().trim()
 
+        // Get selected role
+        val selectedRoleId = binding.roleRadioGroup.checkedRadioButtonId
+        if (selectedRoleId == -1) {
+            Toast.makeText(this, "Please select a role (Buyer/Seller)", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val role = if (selectedRoleId == R.id.buyerRadioButton) "Buyer" else "Seller"
+
         if (name.isEmpty() || phone.isEmpty() || email.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
             return
@@ -45,15 +51,26 @@ class RegisterActivity : AppCompatActivity() {
         auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val firebaseUser = auth.currentUser!!
-                val user = User(name, phone, "", email) // Address starts empty
+                // Create User object including the role, photoUrl starts empty
+                val user = User(name, phone, "", email, role, "")
 
+                // Save user data to Firebase Realtime Database
                 FirebaseDatabase.getInstance().getReference("Users")
                     .child(firebaseUser.uid)
                     .setValue(user)
                     .addOnCompleteListener { dbTask ->
                         if (dbTask.isSuccessful) {
                             Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
-                            startActivity(Intent(this, ProfileActivity::class.java))
+
+                            // Redirect to the appropriate home screen
+                            val homeIntent = if (role == "Buyer") {
+                                Intent(this, BuyerHomeActivity::class.java)
+                            } else {
+                                Intent(this, SellerHomeActivity::class.java)
+                            }
+                            // Clear back stack and start new home activity
+                            homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(homeIntent)
                             finish()
                         } else {
                             Toast.makeText(this, "Database Error: ${dbTask.exception?.message}", Toast.LENGTH_SHORT).show()
