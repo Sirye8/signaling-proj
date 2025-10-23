@@ -20,6 +20,14 @@ class RegisterActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
 
+        binding.roleRadioGroup.setOnCheckedChangeListener { _, checkedId ->
+            if (checkedId == R.id.sellerRadioButton) {
+                binding.nameTextInputLayout.hint = "Shop Name"
+            } else {
+                binding.nameTextInputLayout.hint = "Name"
+            }
+        }
+
         binding.registerButton.setOnClickListener {
             registerUser()
         }

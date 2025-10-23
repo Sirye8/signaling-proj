@@ -191,6 +191,13 @@ class ProfileActivity : AppCompatActivity() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(User::class.java)
                 user?.let {
+                    // Set hint based on role
+                    if (it.role == "Seller") {
+                        binding.nameTextInputLayout.hint = "Shop Name"
+                    } else {
+                        binding.nameTextInputLayout.hint = "Name"
+                    }
+
                     binding.nameEditText.setText(it.name)
                     binding.phoneEditText.setText(it.phone)
                     binding.addressEditText.setText(it.address)
