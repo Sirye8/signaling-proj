@@ -39,9 +39,9 @@ class ProfileActivity : AppCompatActivity() {
     private var selectedImageUri: Uri? = null
 
     // --- AWS CREDENTIALS ---
-    private val AWS_ACCESS_KEY = "AKIA6GUTHW7W32SWZ65Y"
-    private val AWS_SECRET_KEY = "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"
-    private val S3_BUCKET_NAME = "too-many-youssefs-bkt"
+    private val AWS_ACCESS_KEY = ""
+    private val AWS_SECRET_KEY = ""
+    private val S3_BUCKET_NAME = ""
     // -----------------------------------------------------------------
 
     override fun onCreate(savedInstanceState: Bundle?) {
