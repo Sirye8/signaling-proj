@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,14 +7,19 @@ plugins {
     kotlin("kapt")
 }
 
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+
 android {
     namespace = "com.guc_proj.signaling_proj"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     defaultConfig {
@@ -23,6 +30,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Read values from local.properties, provide a fallback empty string
+        val awsAccessKey = localProperties.getProperty("AWS_ACCESS_KEY", "")
+        val awsSecretKey = localProperties.getProperty("AWS_SECRET_KEY", "")
+        val s3BucketName = localProperties.getProperty("S3_BUCKET_NAME", "")
+
+        // Expose them as BuildConfig fields
+        buildConfigField("String", "AWS_ACCESS_KEY", "\"$awsAccessKey\"")
+        buildConfigField("String", "AWS_SECRET_KEY", "\"$awsSecretKey\"")
+        buildConfigField("String", "S3_BUCKET_NAME", "\"$s3BucketName\"")
     }
 
     buildTypes {

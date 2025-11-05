@@ -18,6 +18,7 @@ import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.CannedAccessControlList
+import com.amazonaws.services.s3.model.ListObjectsRequest
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
@@ -25,6 +26,7 @@ import com.guc_proj.signaling_proj.databinding.ActivityProfileBinding
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+import com.guc_proj.signaling_proj.BuildConfig
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -33,16 +35,13 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var database: DatabaseReference
     private var currentUserUid: String? = null
 
-    // --- AWS S3 VARIABLES ---
     private lateinit var s3Client: AmazonS3Client
     private lateinit var transferUtility: TransferUtility
     private var selectedImageUri: Uri? = null
 
-    // --- AWS CREDENTIALS ---
-    private val AWS_ACCESS_KEY = ""
-    private val AWS_SECRET_KEY = ""
-    private val S3_BUCKET_NAME = ""
-    // -----------------------------------------------------------------
+    private val AWS_ACCESS_KEY = BuildConfig.AWS_ACCESS_KEY
+    private val AWS_SECRET_KEY = BuildConfig.AWS_SECRET_KEY
+    private val S3_BUCKET_NAME = BuildConfig.S3_BUCKET_NAME
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,7 +64,6 @@ class ProfileActivity : AppCompatActivity() {
         initS3Client()
         fetchUserData()
 
-        // --- CLICK LISTENERS ---
         binding.selectPhotoButton.setOnClickListener {
             pickImageLauncher.launch("image/*")
         }
@@ -96,6 +94,12 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun initS3Client() {
         try {
+            if (AWS_ACCESS_KEY.isEmpty() || AWS_SECRET_KEY.isEmpty() || S3_BUCKET_NAME.isEmpty()) {
+                Log.e("ProfileActivity_S3", "AWS credentials are not set in local.properties")
+                Toast.makeText(this, "Storage service credentials missing.", Toast.LENGTH_LONG).show()
+                return
+            }
+
             val credentials = BasicAWSCredentials(AWS_ACCESS_KEY, AWS_SECRET_KEY)
             s3Client = AmazonS3Client(credentials, Region.getRegion(Regions.EU_NORTH_1))
             transferUtility = TransferUtility.builder()
@@ -121,7 +125,7 @@ class ProfileActivity : AppCompatActivity() {
                     inputStream.copyTo(outputStream)
                 }
             }
-            if (file.length() > 512 * 1024) { // 0.5 MB check
+            if (file.length() > 512 * 1024) {
                 Toast.makeText(this, "Image is too large (max 0.5 MB).", Toast.LENGTH_LONG).show()
                 file.delete()
                 return
@@ -153,24 +157,20 @@ class ProfileActivity : AppCompatActivity() {
 
             override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {}
 
-            // --- CORRECTED ERROR HANDLING ---
             override fun onError(id: Int, ex: Exception) {
                 Log.e("ProfileActivity_S3", "S3 Upload Error ID $id: ${ex.message}", ex)
                 when (ex) {
                     is AmazonClientException -> {
-                        // This handles network errors and other client-side issues.
                         Toast.makeText(applicationContext, "Upload failed. Please check your network connection.", Toast.LENGTH_LONG).show()
                     }
                     is AmazonServiceException -> {
-                        // This handles errors from the AWS service itself (e.g., access denied).
                         Toast.makeText(applicationContext, "Storage service error: ${ex.errorMessage}", Toast.LENGTH_LONG).show()
                     }
                     else -> {
-                        // A general fallback for any other unexpected errors.
                         Toast.makeText(applicationContext, "An unknown upload error occurred.", Toast.LENGTH_SHORT).show()
                     }
                 }
-                file.delete() // Clean up the temporary file on any error
+                file.delete()
             }
         })
     }
@@ -191,7 +191,6 @@ class ProfileActivity : AppCompatActivity() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(User::class.java)
                 user?.let {
-                    // Set hint based on role
                     if (it.role == "Seller") {
                         binding.nameTextInputLayout.hint = "Shop Name"
                     } else {
@@ -251,9 +250,57 @@ class ProfileActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun deleteS3Folder() {
+        if (!::s3Client.isInitialized) {
+            Log.e("ProfileActivity_S3", "S3 client not initialized, skipping deletion.")
+            return
+        }
+        if (currentUserUid.isNullOrEmpty()) {
+            Log.e("ProfileActivity_S3", "User UID is null, cannot delete folder.")
+            return
+        }
+
+        val folderKey = "profile-photos/$currentUserUid/"
+
+        Thread {
+            try {
+                Log.d("ProfileActivity_S3", "Listing objects for deletion in prefix: $folderKey")
+                val listRequest = ListObjectsRequest()
+                    .withBucketName(S3_BUCKET_NAME)
+                    .withPrefix(folderKey)
+
+                var objectListing = s3Client.listObjects(listRequest)
+
+                while (true) {
+                    for (summary in objectListing.objectSummaries) {
+                        Log.d("ProfileActivity_S3", "Deleting object: ${summary.key}")
+                        s3Client.deleteObject(S3_BUCKET_NAME, summary.key)
+                    }
+
+                    if (objectListing.isTruncated) {
+                        objectListing = s3Client.listNextBatchOfObjects(objectListing)
+                    } else {
+                        break
+                    }
+                }
+                Log.d("ProfileActivity_S3", "Successfully deleted folder contents for $folderKey")
+
+            } catch (e: AmazonServiceException) {
+                Log.e("ProfileActivity_S3", "S3 Service Error deleting folder: ${e.errorMessage}", e)
+            } catch (e: AmazonClientException) {
+                Log.e("ProfileActivity_S3", "S3 Client Error deleting folder: ${e.message}", e)
+            } catch (e: Exception) {
+                Log.e("ProfileActivity_S3", "Generic error deleting S3 folder: ${e.message}", e)
+            }
+        }.start()
+    }
+
     private fun deleteUserAccount() {
         val user = auth.currentUser
         if (user != null && currentUserUid != null) {
+
+            deleteS3Folder()
+
             database.removeValue().addOnCompleteListener { dbTask ->
                 if (dbTask.isSuccessful) {
                     user.delete().addOnCompleteListener { authTask ->
