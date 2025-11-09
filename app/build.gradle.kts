@@ -74,4 +74,7 @@ dependencies {
     implementation(libs.aws.s3)
     implementation(libs.glide)
     kapt(libs.glide.compiler)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
 }
