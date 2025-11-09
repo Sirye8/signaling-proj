@@ -4,39 +4,46 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="36" /> <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> <application
-    android:allowBackup="true"
-    android:dataExtractionRules="@xml/data_extraction_rules"
-    android:fullBackupContent="@xml/backup_rules"
-    android:icon="@mipmap/ic_launcher"
-    android:label="@string/app_name"
-    android:roundIcon="@mipmap/ic_launcher_round"
-    android:supportsRtl="true"
-    android:theme="@style/Theme.Signalingproj"
-    android:usesCleartextTraffic="true" tools:targetApi="31">
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="36" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Signalingproj"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
 
-    <activity
-        android:name=".LoginActivity"
-        android:exported="true">
-        <intent-filter>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.LAUNCHER" />
-        </intent-filter>
-    </activity>
-    <activity
-        android:name=".RegisterActivity"
-        android:exported="false" />
-    <activity
-        android:name=".ProfileActivity"
-        android:exported="false" />
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ProfileActivity"
+            android:exported="false" />
 
-    <activity
-        android:name=".BuyerHomeActivity"
-        android:exported="false" />
-    <activity
-        android:name=".SellerHomeActivity"
-        android:exported="false" />
+        <activity
+            android:name=".BuyerHomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SellerHomeActivity"
+            android:exported="false" />
 
-</application>
+        <activity
+            android:name=".seller.ProductActivity"
+            android:exported="false" />
+
+    </application>
 
 </manifest>
