@@ -1,6 +1,5 @@
 package com.guc_proj.signaling_proj
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -23,17 +22,21 @@ class SellerHomeActivity : AppCompatActivity() {
         }
 
         binding.bottomNavigation.setOnItemSelectedListener { item ->
+            var selectedFragment: Fragment? = null
             when (item.itemId) {
                 R.id.nav_seller_products -> {
-                    loadFragment(SellerProductsFragment())
-                    true
+                    selectedFragment = SellerProductsFragment()
                 }
                 R.id.nav_seller_profile -> {
-                    startActivity(Intent(this, ProfileActivity::class.java))
-                    false
+                    selectedFragment = ProfileFragment()
                 }
-                else -> false
             }
+
+            if (selectedFragment != null) {
+                loadFragment(selectedFragment)
+            }
+
+            true // Return true to show the item as selected
         }
     }
 

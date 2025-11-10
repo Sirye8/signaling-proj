@@ -4,10 +4,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import com.amazonaws.AmazonClientException
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.auth.BasicAWSCredentials
@@ -22,15 +25,16 @@ import com.amazonaws.services.s3.model.ListObjectsRequest
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
-import com.guc_proj.signaling_proj.databinding.ActivityProfileBinding
+import com.guc_proj.signaling_proj.databinding.FragmentProfileBinding
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
-import com.guc_proj.signaling_proj.BuildConfig
 
-class ProfileActivity : AppCompatActivity() {
+class ProfileFragment : Fragment() {
 
-    private lateinit var binding: ActivityProfileBinding
+    private var _binding: FragmentProfileBinding? = null
+    private val binding get() = _binding!!
+
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
     private var currentUserUid: String? = null
@@ -43,17 +47,22 @@ class ProfileActivity : AppCompatActivity() {
     private val AWS_SECRET_KEY = BuildConfig.AWS_SECRET_KEY
     private val S3_BUCKET_NAME = BuildConfig.S3_BUCKET_NAME
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityProfileBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentProfileBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         auth = FirebaseAuth.getInstance()
         val currentUser = auth.currentUser
 
         if (currentUser == null) {
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
+            logoutUser() // User shouldn't be here
             return
         }
 
@@ -88,56 +97,56 @@ class ProfileActivity : AppCompatActivity() {
         if (uri != null) {
             selectedImageUri = uri
             Glide.with(this).load(uri).into(binding.profileImageView)
-            Toast.makeText(this, "Photo selected. Press 'Save Changes' to upload.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Photo selected. Press 'Save Changes' to upload.", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun initS3Client() {
         try {
             if (AWS_ACCESS_KEY.isEmpty() || AWS_SECRET_KEY.isEmpty() || S3_BUCKET_NAME.isEmpty()) {
-                Log.e("ProfileActivity_S3", "AWS credentials are not set in local.properties")
-                Toast.makeText(this, "Storage service credentials missing.", Toast.LENGTH_LONG).show()
+                Log.e("ProfileFragment_S3", "AWS credentials are not set in local.properties")
+                Toast.makeText(context, "Storage service credentials missing.", Toast.LENGTH_LONG).show()
                 return
             }
 
             val credentials = BasicAWSCredentials(AWS_ACCESS_KEY, AWS_SECRET_KEY)
             s3Client = AmazonS3Client(credentials, Region.getRegion(Regions.EU_NORTH_1))
             transferUtility = TransferUtility.builder()
-                .context(applicationContext)
+                .context(requireContext().applicationContext)
                 .s3Client(s3Client)
                 .build()
         } catch (e: Exception) {
-            Log.e("ProfileActivity_S3", "Error initializing S3 client: ${e.message}")
-            Toast.makeText(this, "Failed to connect to storage service.", Toast.LENGTH_SHORT).show()
+            Log.e("ProfileFragment_S3", "Error initializing S3 client: ${e.message}")
+            Toast.makeText(context, "Failed to connect to storage service.", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun uploadImageToS3(uri: Uri) {
         if (!::transferUtility.isInitialized) {
-            Toast.makeText(this, "Storage service not initialized.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Storage service not initialized.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val file = File(cacheDir, "temp_image.jpg")
+        val file = File(requireContext().cacheDir, "temp_image.jpg")
         try {
-            contentResolver.openInputStream(uri)?.use { inputStream ->
+            requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                 FileOutputStream(file).use { outputStream ->
                     inputStream.copyTo(outputStream)
                 }
             }
             if (file.length() > 512 * 1024) {
-                Toast.makeText(this, "Image is too large (max 0.5 MB).", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Image is too large (max 0.5 MB).", Toast.LENGTH_LONG).show()
                 file.delete()
                 return
             }
         } catch (e: Exception) {
-            Log.e("ProfileActivity_S3", "File preparation error: ${e.message}")
+            Log.e("ProfileFragment_S3", "File preparation error: ${e.message}")
             if (file.exists()) file.delete()
             return
         }
 
         val objectKey = "profile-photos/${currentUserUid}/${UUID.randomUUID()}.jpg"
-        Toast.makeText(this, "Uploading photo...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Uploading photo...", Toast.LENGTH_SHORT).show()
 
         val transferObserver = transferUtility.upload(
             S3_BUCKET_NAME,
@@ -158,16 +167,17 @@ class ProfileActivity : AppCompatActivity() {
             override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {}
 
             override fun onError(id: Int, ex: Exception) {
-                Log.e("ProfileActivity_S3", "S3 Upload Error ID $id: ${ex.message}", ex)
+                Log.e("ProfileFragment_S3", "S3 Upload Error ID $id: ${ex.message}", ex)
+                val appCtx = context?.applicationContext
                 when (ex) {
                     is AmazonClientException -> {
-                        Toast.makeText(applicationContext, "Upload failed. Please check your network connection.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(appCtx, "Upload failed. Please check your network connection.", Toast.LENGTH_LONG).show()
                     }
                     is AmazonServiceException -> {
-                        Toast.makeText(applicationContext, "Storage service error: ${ex.errorMessage}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(appCtx, "Storage service error: ${ex.errorMessage}", Toast.LENGTH_LONG).show()
                     }
                     else -> {
-                        Toast.makeText(applicationContext, "An unknown upload error occurred.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(appCtx, "An unknown upload error occurred.", Toast.LENGTH_SHORT).show()
                     }
                 }
                 file.delete()
@@ -178,11 +188,11 @@ class ProfileActivity : AppCompatActivity() {
     private fun saveImageUrlToFirebase(photoUrl: String) {
         database.child("photoUrl").setValue(photoUrl)
             .addOnSuccessListener {
-                Toast.makeText(this, "Profile photo updated!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Profile photo updated!", Toast.LENGTH_SHORT).show()
                 selectedImageUri = null
             }
             .addOnFailureListener {
-                Toast.makeText(this, "Failed to save photo URL.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed to save photo URL.", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -200,8 +210,8 @@ class ProfileActivity : AppCompatActivity() {
                     binding.nameEditText.setText(it.name)
                     binding.phoneEditText.setText(it.phone)
                     binding.addressEditText.setText(it.address)
-                    if (!it.photoUrl.isNullOrEmpty()) {
-                        Glide.with(this@ProfileActivity)
+                    if (!it.photoUrl.isNullOrEmpty() && context != null) {
+                        Glide.with(this@ProfileFragment)
                             .load(it.photoUrl)
                             .placeholder(R.drawable.ic_launcher_foreground)
                             .into(binding.profileImageView)
@@ -212,7 +222,7 @@ class ProfileActivity : AppCompatActivity() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(baseContext, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
             }
         })
     }
@@ -226,23 +236,26 @@ class ProfileActivity : AppCompatActivity() {
         )
         database.updateChildren(userUpdates).addOnCompleteListener { task ->
             if (task.isSuccessful && selectedImageUri == null) {
-                Toast.makeText(this, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
             } else if (!task.isSuccessful) {
-                Toast.makeText(this, "Failed to update profile text data.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed to update profile text data.", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun logoutUser() {
         auth.signOut()
-        val intent = Intent(this, LoginActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
+        // Check if activity is still valid
+        if (activity != null) {
+            val intent = Intent(activity, LoginActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            activity?.finish()
+        }
     }
 
     private fun showDeleteConfirmationDialog() {
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(requireContext())
             .setTitle("Delete Account")
             .setMessage("Are you sure you want to permanently delete your account?")
             .setPositiveButton("Delete") { _, _ -> deleteUserAccount() }
@@ -252,11 +265,11 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun deleteS3Folder() {
         if (!::s3Client.isInitialized) {
-            Log.e("ProfileActivity_S3", "S3 client not initialized, skipping deletion.")
+            Log.e("ProfileFragment_S3", "S3 client not initialized, skipping deletion.")
             return
         }
         if (currentUserUid.isNullOrEmpty()) {
-            Log.e("ProfileActivity_S3", "User UID is null, cannot delete folder.")
+            Log.e("ProfileFragment_S3", "User UID is null, cannot delete folder.")
             return
         }
 
@@ -264,7 +277,7 @@ class ProfileActivity : AppCompatActivity() {
 
         Thread {
             try {
-                Log.d("ProfileActivity_S3", "Listing objects for deletion in prefix: $folderKey")
+                Log.d("ProfileFragment_S3", "Listing objects for deletion in prefix: $folderKey")
                 val listRequest = ListObjectsRequest()
                     .withBucketName(S3_BUCKET_NAME)
                     .withPrefix(folderKey)
@@ -273,7 +286,7 @@ class ProfileActivity : AppCompatActivity() {
 
                 while (true) {
                     for (summary in objectListing.objectSummaries) {
-                        Log.d("ProfileActivity_S3", "Deleting object: ${summary.key}")
+                        Log.d("ProfileFragment_S3", "Deleting object: ${summary.key}")
                         s3Client.deleteObject(S3_BUCKET_NAME, summary.key)
                     }
 
@@ -283,14 +296,14 @@ class ProfileActivity : AppCompatActivity() {
                         break
                     }
                 }
-                Log.d("ProfileActivity_S3", "Successfully deleted folder contents for $folderKey")
+                Log.d("ProfileFragment_S3", "Successfully deleted folder contents for $folderKey")
 
             } catch (e: AmazonServiceException) {
-                Log.e("ProfileActivity_S3", "S3 Service Error deleting folder: ${e.errorMessage}", e)
+                Log.e("ProfileFragment_S3", "S3 Service Error deleting folder: ${e.errorMessage}", e)
             } catch (e: AmazonClientException) {
-                Log.e("ProfileActivity_S3", "S3 Client Error deleting folder: ${e.message}", e)
+                Log.e("ProfileFragment_S3", "S3 Client Error deleting folder: ${e.message}", e)
             } catch (e: Exception) {
-                Log.e("ProfileActivity_S3", "Generic error deleting S3 folder: ${e.message}", e)
+                Log.e("ProfileFragment_S3", "Generic error deleting S3 folder: ${e.message}", e)
             }
         }.start()
     }
@@ -305,16 +318,21 @@ class ProfileActivity : AppCompatActivity() {
                 if (dbTask.isSuccessful) {
                     user.delete().addOnCompleteListener { authTask ->
                         if (authTask.isSuccessful) {
-                            Toast.makeText(this, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
                             logoutUser()
                         } else {
-                            Toast.makeText(this, "Deletion failed. Please log in again and retry.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Deletion failed. Please log in again and retry.", Toast.LENGTH_LONG).show()
                         }
                     }
                 } else {
-                    Toast.makeText(this, "Failed to delete user data.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Failed to delete user data.", Toast.LENGTH_LONG).show()
                 }
             }
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

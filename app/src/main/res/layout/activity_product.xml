@@ -4,22 +4,23 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".seller.ProductActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:gravity="center_horizontal"
+        android:orientation="vertical"
         android:padding="24dp">
 
         <TextView
             android:id="@+id/titleTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
             android:text="Add New Product"
-            android:textAppearance="@style/TextAppearance.Material3.HeadlineLarge"
-            android:layout_marginBottom="24dp" />
+            android:textAppearance="@style/TextAppearance.Material3.HeadlineLarge" />
 
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/productImageView"

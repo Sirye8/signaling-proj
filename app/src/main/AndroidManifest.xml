@@ -26,11 +26,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
             android:name=".RegisterActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ProfileActivity"
             android:exported="false" />
 
         <activity
@@ -42,6 +40,10 @@
 
         <activity
             android:name=".seller.ProductActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".buyer.ShopProductsActivity"
             android:exported="false" />
 
     </application>

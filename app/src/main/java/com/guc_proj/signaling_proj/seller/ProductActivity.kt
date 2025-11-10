@@ -177,10 +177,14 @@ class ProductActivity : AppCompatActivity() {
             binding.saveProductButton.isEnabled = true
             return
         }
+        // --- End File Preparation ---
 
+        // If editing, use the existing product ID. If adding, create a new one.
         val productId = existingProduct?.productId ?: FirebaseDatabase.getInstance().getReference("Products").push().key ?: UUID.randomUUID().toString()
         val objectKey = "product-photos/$currentUserId/$productId.jpg"
 
+        // TODO: If in edit mode, delete the old image from S3 first.
+        // For simplicity, we'll just overwrite it by using the same objectKey.
 
         val transferObserver = transferUtility.upload(
             S3_BUCKET_NAME,

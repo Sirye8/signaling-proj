@@ -1,68 +1,51 @@
 package com.guc_proj.signaling_proj
 
-import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
-import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import androidx.fragment.app.Fragment
+import com.guc_proj.signaling_proj.buyer.CartFragment
+import com.guc_proj.signaling_proj.buyer.ShopsFragment
+import com.guc_proj.signaling_proj.databinding.ActivityBuyerHomeBinding
 
 class BuyerHomeActivity : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var database: DatabaseReference
-    private var currentUserUid: String? = null
-
-    private lateinit var welcomeTextView: TextView
+    private lateinit var binding: ActivityBuyerHomeBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_buyer_home)
+        binding = ActivityBuyerHomeBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        welcomeTextView = findViewById(R.id.welcomeTextView)
-
-        auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser
-
-        if (currentUser == null) {
-            // Should not happen if redirected from Login, but good practice
-            startActivity(Intent(this, LoginActivity::class.java))
-            finish()
-            return
+        // Load default fragment
+        if (savedInstanceState == null) {
+            loadFragment(ShopsFragment())
         }
 
-        currentUserUid = currentUser.uid
-        database = FirebaseDatabase.getInstance().getReference("Users").child(currentUserUid!!)
-
-        fetchUserName()
-
-        findViewById<Button>(R.id.profileButton).setOnClickListener {
-            startActivity(Intent(this, ProfileActivity::class.java))
-        }
-    }
-
-    private fun fetchUserName() {
-        database.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val user = snapshot.getValue(User::class.java)
-                val userName = user?.name
-                if (!userName.isNullOrEmpty()) {
-                    welcomeTextView.text = "Welcome, $userName!"
-                } else {
-                    welcomeTextView.text = "Welcome, Buyer!"
+        binding.bottomNavigation.setOnItemSelectedListener { item ->
+            var selectedFragment: Fragment? = null
+            when (item.itemId) {
+                R.id.nav_buyer_shops -> {
+                    selectedFragment = ShopsFragment()
+                }
+                R.id.nav_buyer_cart -> {
+                    selectedFragment = CartFragment()
+                }
+                R.id.nav_buyer_profile -> {
+                    selectedFragment = ProfileFragment()
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(baseContext, "Failed to load user data.", Toast.LENGTH_SHORT).show()
-                welcomeTextView.text = "Welcome, Buyer!"
+            if (selectedFragment != null) {
+                loadFragment(selectedFragment)
             }
-        })
+
+            true
+        }
+    }
+
+    private fun loadFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.buyer_fragment_container, fragment)
+            .commit()
     }
 }
