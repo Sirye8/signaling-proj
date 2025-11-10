@@ -3,6 +3,7 @@ package com.guc_proj.signaling_proj
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import com.guc_proj.signaling_proj.buyer.BuyerOrdersFragment
 import com.guc_proj.signaling_proj.buyer.CartFragment
 import com.guc_proj.signaling_proj.buyer.ShopsFragment
 import com.guc_proj.signaling_proj.databinding.ActivityBuyerHomeBinding
@@ -29,6 +30,9 @@ class BuyerHomeActivity : AppCompatActivity() {
                 }
                 R.id.nav_buyer_cart -> {
                     selectedFragment = CartFragment()
+                }
+                R.id.nav_buyer_orders -> {
+                    selectedFragment = BuyerOrdersFragment()
                 }
                 R.id.nav_buyer_profile -> {
                     selectedFragment = ProfileFragment()

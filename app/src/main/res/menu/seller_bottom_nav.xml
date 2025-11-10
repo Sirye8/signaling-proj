@@ -5,6 +5,10 @@
         android:icon="@drawable/ic_launcher_foreground"
         android:title="My Products" />
     <item
+        android:id="@+id/nav_seller_orders"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:title="Orders" />
+    <item
         android:id="@+id/nav_seller_profile"
         android:icon="@drawable/ic_launcher_foreground"
         android:title="Profile" />

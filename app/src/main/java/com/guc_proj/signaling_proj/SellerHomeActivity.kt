@@ -3,8 +3,8 @@ package com.guc_proj.signaling_proj
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.guc_proj.signaling_proj.databinding.ActivitySellerHomeBinding
+import com.guc_proj.signaling_proj.seller.SellerOrdersFragment
 import com.guc_proj.signaling_proj.seller.SellerProductsFragment
 
 class SellerHomeActivity : AppCompatActivity() {
@@ -26,6 +26,9 @@ class SellerHomeActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_seller_products -> {
                     selectedFragment = SellerProductsFragment()
+                }
+                R.id.nav_seller_orders -> {
+                    selectedFragment = SellerOrdersFragment()
                 }
                 R.id.nav_seller_profile -> {
                     selectedFragment = ProfileFragment()

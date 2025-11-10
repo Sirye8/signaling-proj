@@ -13,11 +13,11 @@
 
         <ImageView
             android:id="@+id/productImage"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
             android:scaleType="centerCrop"
-            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
             tools:src="@drawable/ic_launcher_foreground" />
 
@@ -27,9 +27,9 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-            app:layout_constraintTop_toTopOf="@id/productImage"
             app:layout_constraintStart_toEndOf="@id/productImage"
-            app:layout_constraintEnd_toStartOf="@id/removeButton"
+            app:layout_constraintTop_toTopOf="@id/productImage"
+            app:layout_constraintEnd_toStartOf="@+id/removeButton"
             tools:text="Product Name" />
 
         <TextView
@@ -37,39 +37,40 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
+            android:layout_marginTop="4dp"
             android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            app:layout_constraintBottom_toBottomOf="@id/productImage"
             app:layout_constraintStart_toEndOf="@id/productImage"
+            app:layout_constraintTop_toBottomOf="@id/productName"
             tools:text="$10.99" />
 
         <ImageButton
             android:id="@+id/removeButton"
+            style="@style/Widget.Material3.Button.IconButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_launcher_foreground"
-            app:tint="@color/md_theme_error"
-            style="@style/Widget.Material3.Button.IconButton"
             android:contentDescription="Remove item"
+            android:src="@android:drawable/ic_menu_delete"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:tint="@color/md_theme_error" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:gravity="center_vertical"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <Button
                 android:id="@+id/decreaseButton"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="-"
-                app:iconPadding="0dp"
                 android:paddingLeft="0dp"
-                android:paddingRight="0dp" />
+                android:paddingRight="0dp"
+                android:text="-"
+                app:iconPadding="0dp" />
 
             <TextView
                 android:id="@+id/quantityTextView"
@@ -84,10 +85,10 @@
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:text="+"
-                app:iconPadding="0dp"
                 android:paddingLeft="0dp"
-                android:paddingRight="0dp" />
+                android:paddingRight="0dp"
+                android:text="+"
+                app:iconPadding="0dp" />
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

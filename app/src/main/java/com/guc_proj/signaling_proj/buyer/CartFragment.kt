@@ -1,6 +1,7 @@
 package com.guc_proj.signaling_proj.buyer
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,8 +9,13 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.Order
+import com.guc_proj.signaling_proj.User
 import com.guc_proj.signaling_proj.databinding.FragmentCartBinding
 import java.util.*
 
@@ -20,6 +26,7 @@ class CartFragment : Fragment() {
 
     private lateinit var cartAdapter: CartAdapter
     private lateinit var auth: FirebaseAuth
+    private val database = FirebaseDatabase.getInstance().reference
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -94,26 +101,59 @@ class CartFragment : Fragment() {
             return
         }
 
-        val database = FirebaseDatabase.getInstance().getReference("Orders")
-        val orderId = database.push().key ?: UUID.randomUUID().toString()
-
-        val order = Order(
-            orderId = orderId,
-            buyerId = buyerId,
-            sellerId = sellerId,
-            items = items,
-            totalPrice = total,
-            status = "Pending"
-        )
-
         binding.placeOrderButton.isEnabled = false
-        database.child(orderId).setValue(order)
+        Toast.makeText(context, "Placing order...", Toast.LENGTH_SHORT).show()
+
+        // Fetch Buyer and Seller names before creating the order
+        // 1. Fetch Buyer Name
+        database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(buyerSnapshot: DataSnapshot) {
+                val buyerName = buyerSnapshot.getValue<User>()?.name ?: "Unknown Buyer"
+
+                // 2. Fetch Seller Name
+                database.child("Users").child(sellerId).addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(sellerSnapshot: DataSnapshot) {
+                        val sellerName = sellerSnapshot.getValue<User>()?.name ?: "Unknown Seller"
+
+                        // 3. Create and Save Order
+                        val orderId = database.child("Orders").push().key ?: UUID.randomUUID().toString()
+                        val order = Order(
+                            orderId = orderId,
+                            buyerId = buyerId,
+                            sellerId = sellerId,
+                            buyerName = buyerName,
+                            sellerName = sellerName,
+                            items = items,
+                            totalPrice = total,
+                            status = Order.STATUS_PENDING
+                        )
+
+                        saveOrderToFirebase(orderId, order)
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                        Log.e("CartFragment", "Failed to get seller name: ${error.message}")
+                        Toast.makeText(context, "Failed to place order. Could not verify seller.", Toast.LENGTH_SHORT).show()
+                        binding.placeOrderButton.isEnabled = true
+                    }
+                })
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("CartFragment", "Failed to get buyer name: ${error.message}")
+                Toast.makeText(context, "Failed to place order. Could not verify user.", Toast.LENGTH_SHORT).show()
+                binding.placeOrderButton.isEnabled = true
+            }
+        })
+    }
+
+    private fun saveOrderToFirebase(orderId: String, order: Order) {
+        database.child("Orders").child(orderId).setValue(order)
             .addOnSuccessListener {
                 Toast.makeText(context, "Order placed successfully!", Toast.LENGTH_SHORT).show()
                 CartManager.clearCart()
                 updateCartView()
                 binding.placeOrderButton.isEnabled = true
-                // TODO: Implement stock update logic for Milestone 4
             }
             .addOnFailureListener {
                 Toast.makeText(context, "Failed to place order: ${it.message}", Toast.LENGTH_SHORT).show()

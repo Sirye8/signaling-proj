@@ -9,6 +9,10 @@
         android:icon="@drawable/ic_launcher_foreground"
         android:title="Cart" />
     <item
+        android:id="@+id/nav_buyer_orders"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:title="Orders" />
+    <item
         android:id="@+id/nav_buyer_profile"
         android:icon="@drawable/ic_launcher_foreground"
         android:title="Profile" />
