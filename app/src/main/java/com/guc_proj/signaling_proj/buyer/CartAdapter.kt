@@ -7,6 +7,7 @@ import com.bumptech.glide.Glide
 import com.guc_proj.signaling_proj.CartItem
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.databinding.ItemCartBinding
+import java.util.Locale // <-- Import Locale
 
 class CartAdapter(
     private var cartItems: List<CartItem>,
@@ -14,7 +15,7 @@ class CartAdapter(
     private val onRemove: (CartItem) -> Unit
 ) : RecyclerView.Adapter<CartAdapter.CartViewHolder>() {
 
-    inner class CartViewHolder(val binding: ItemCartBinding) :
+    class CartViewHolder(val binding: ItemCartBinding) :
         RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CartViewHolder {
@@ -28,13 +29,15 @@ class CartAdapter(
 
     override fun onBindViewHolder(holder: CartViewHolder, position: Int) {
         val cartItem = cartItems[position]
+        val product = cartItem.product
+
         with(holder.binding) {
-            productName.text = cartItem.product.name
-            productPrice.text = String.format("$%.2f", cartItem.product.price)
+            productName.text = product?.name ?: "Unknown Item"
+            productPrice.text = String.format(Locale.US, "$%.2f", product?.price ?: 0.0)
             quantityTextView.text = cartItem.quantityInCart.toString()
 
             Glide.with(root.context)
-                .load(cartItem.product.photoUrl)
+                .load(product?.photoUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
                 .into(productImage)
 
@@ -53,7 +56,8 @@ class CartAdapter(
             }
 
             increaseButton.setOnClickListener {
-                if (cartItem.quantityInCart < (cartItem.product.quantity ?: Int.MAX_VALUE)) {
+                val maxQuantity = product?.quantity ?: Int.MAX_VALUE
+                if (cartItem.quantityInCart < maxQuantity) {
                     cartItem.quantityInCart++
                     quantityTextView.text = cartItem.quantityInCart.toString()
                     onQuantityChanged(cartItem)

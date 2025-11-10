@@ -64,7 +64,6 @@ class BuyerOrdersFragment : Fragment() {
                         val order = orderSnapshot.getValue(Order::class.java)
                         order?.let { orderList.add(it) }
                     }
-                    // Show newest orders first
                     orderList.reverse()
                     orderAdapter.updateOrders(orderList)
 

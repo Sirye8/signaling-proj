@@ -9,8 +9,7 @@ object CartManager {
     fun addItem(product: Product) {
         val productId = product.productId ?: return
 
-        // If the cart has items from a different seller, clear it first.
-        if (cartItems.isNotEmpty() && cartItems.values.first().product.sellerId != product.sellerId) {
+        if (cartItems.isNotEmpty() && cartItems.values.first().product?.sellerId != product.sellerId) {
             cartItems.clear()
         }
 
@@ -19,7 +18,6 @@ object CartManager {
             // Add new item
             cartItems[productId] = CartItem(product, 1)
         } else {
-            // Increment existing item, checking against stock
             if (cartItem.quantityInCart < (product.quantity ?: 1)) {
                 cartItem.quantityInCart++
             }
@@ -35,7 +33,7 @@ object CartManager {
         cartItem?.let {
             if (newQuantity <= 0) {
                 removeItem(productId)
-            } else if (newQuantity <= (it.product.quantity ?: newQuantity)) {
+            } else if (newQuantity <= (it.product?.quantity ?: newQuantity)) {
                 it.quantityInCart = newQuantity
             }
         }
@@ -44,7 +42,7 @@ object CartManager {
     fun getCartItems(): List<CartItem> = cartItems.values.toList()
 
     fun getCartTotal(): Double {
-        return cartItems.values.sumOf { (it.product.price ?: 0.0) * it.quantityInCart }
+        return cartItems.values.sumOf { (it.product?.price ?: 0.0) * it.quantityInCart }
     }
 
     fun getSellerId(): String? {

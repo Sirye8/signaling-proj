@@ -17,7 +17,8 @@ import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.User
 import com.guc_proj.signaling_proj.databinding.FragmentCartBinding
-import java.util.*
+import java.util.* // <-- Make sure this is imported
+import java.util.Locale // <-- Add this import
 
 class CartFragment : Fragment() {
 
@@ -55,12 +56,16 @@ class CartFragment : Fragment() {
     private fun setupRecyclerView() {
         cartAdapter = CartAdapter(
             CartManager.getCartItems(),
-            { cartItem -> // On quantity change
-                CartManager.updateQuantity(cartItem.product.productId!!, cartItem.quantityInCart)
+            { cartItem ->
+                cartItem.product?.productId?.let { productId ->
+                    CartManager.updateQuantity(productId, cartItem.quantityInCart)
+                }
                 updateCartView()
             },
-            { cartItem -> // On remove
-                CartManager.removeItem(cartItem.product.productId!!)
+            { cartItem ->
+                cartItem.product?.productId?.let { productId ->
+                    CartManager.removeItem(productId)
+                }
                 updateCartView()
             }
         )
@@ -81,7 +86,7 @@ class CartFragment : Fragment() {
             binding.emptyCartView.visibility = View.GONE
             binding.cartContentGroup.visibility = View.VISIBLE
             val total = CartManager.getCartTotal()
-            binding.totalPriceTextView.text = String.format("Total: $%.2f", total)
+            binding.totalPriceTextView.text = String.format(Locale.US, "Total: $%.2f", total)
         }
     }
 
@@ -104,18 +109,14 @@ class CartFragment : Fragment() {
         binding.placeOrderButton.isEnabled = false
         Toast.makeText(context, "Placing order...", Toast.LENGTH_SHORT).show()
 
-        // Fetch Buyer and Seller names before creating the order
-        // 1. Fetch Buyer Name
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(buyerSnapshot: DataSnapshot) {
                 val buyerName = buyerSnapshot.getValue<User>()?.name ?: "Unknown Buyer"
 
-                // 2. Fetch Seller Name
                 database.child("Users").child(sellerId).addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(sellerSnapshot: DataSnapshot) {
                         val sellerName = sellerSnapshot.getValue<User>()?.name ?: "Unknown Seller"
 
-                        // 3. Create and Save Order
                         val orderId = database.child("Orders").push().key ?: UUID.randomUUID().toString()
                         val order = Order(
                             orderId = orderId,

@@ -32,7 +32,6 @@ class BuyerOrderAdapter(
             totalPriceTextView.text = String.format("$%.2f", order.totalPrice)
             statusTextView.text = "Status: ${order.status}"
 
-            // Set status color
             when (order.status) {
                 Order.STATUS_PENDING -> statusTextView.setTextColor(Color.parseColor("#FFA500")) // Orange
                 Order.STATUS_REJECTED -> statusTextView.setTextColor(root.context.getColor(R.color.md_theme_error))
@@ -40,10 +39,12 @@ class BuyerOrderAdapter(
                 else -> statusTextView.setTextColor(root.context.getColor(R.color.md_theme_primary))
             }
 
-            // Create items summary
-            val itemsSummary = order.items?.values?.joinToString(", ") {
-                "${it.product.name} x ${it.quantityInCart}"
-            }
+            val itemsSummary = order.items?.values?.mapNotNull { cartItem ->
+                cartItem.product?.let { product ->
+                    "${product.name ?: "Unknown Item"} x ${cartItem.quantityInCart}"
+                }
+            }?.joinToString(", ") ?: "No items"
+
             itemsSummaryTextView.text = "Items: $itemsSummary"
         }
     }
