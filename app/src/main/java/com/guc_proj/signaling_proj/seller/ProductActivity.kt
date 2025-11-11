@@ -59,7 +59,6 @@ class ProductActivity : AppCompatActivity() {
             return
         }
 
-        // Check if we are in "Edit Mode"
         if (intent.hasExtra(EXTRA_PRODUCT)) {
             existingProduct = intent.getParcelableExtra(EXTRA_PRODUCT)
             if (existingProduct != null) {
@@ -130,21 +129,17 @@ class ProductActivity : AppCompatActivity() {
 
         binding.saveProductButton.isEnabled = false
 
-        // If user selected a new image, upload it
         if (selectedImageUri != null) {
             Toast.makeText(this, "Uploading new image...", Toast.LENGTH_SHORT).show()
             uploadImageToS3(selectedImageUri!!, name, price, quantity)
         } else if (isEditMode) {
-            // If in edit mode and no new image, just update the data
             val updatedProduct = existingProduct!!.copy(
                 name = name,
                 price = price,
                 quantity = quantity
-                // photoUrl remains the same
             )
             saveProductToFirebase(updatedProduct)
         } else {
-            // If in "Add Mode" and no image is selected
             Toast.makeText(this, "Please select a product photo.", Toast.LENGTH_SHORT).show()
             binding.saveProductButton.isEnabled = true
         }
@@ -157,7 +152,6 @@ class ProductActivity : AppCompatActivity() {
             return
         }
 
-        // --- File Preparation (same as before) ---
         val file = File(cacheDir, "temp_image.jpg")
         try {
             contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -177,14 +171,9 @@ class ProductActivity : AppCompatActivity() {
             binding.saveProductButton.isEnabled = true
             return
         }
-        // --- End File Preparation ---
 
-        // If editing, use the existing product ID. If adding, create a new one.
         val productId = existingProduct?.productId ?: FirebaseDatabase.getInstance().getReference("Products").push().key ?: UUID.randomUUID().toString()
         val objectKey = "product-photos/$currentUserId/$productId.jpg"
-
-        // TODO: If in edit mode, delete the old image from S3 first.
-        // For simplicity, we'll just overwrite it by using the same objectKey.
 
         val transferObserver = transferUtility.upload(
             S3_BUCKET_NAME,
@@ -195,6 +184,10 @@ class ProductActivity : AppCompatActivity() {
 
         transferObserver.setTransferListener(object : TransferListener {
             override fun onStateChanged(id: Int, state: TransferState) {
+                if (isFinishing || isDestroyed) {
+                    file.delete()
+                    return
+                }
                 if (state == TransferState.COMPLETED) {
                     val photoUrl = s3Client.getUrl(S3_BUCKET_NAME, objectKey).toString()
                     val product = Product(
@@ -213,9 +206,10 @@ class ProductActivity : AppCompatActivity() {
             override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {}
 
             override fun onError(id: Int, ex: Exception) {
+                file.delete()
+                if (isFinishing || isDestroyed) return
                 Log.e("Product_S3", "S3 Upload Error: ${ex.message}", ex)
                 Toast.makeText(applicationContext, "Upload failed: ${ex.message}", Toast.LENGTH_LONG).show()
-                file.delete()
                 binding.saveProductButton.isEnabled = true
             }
         })
@@ -226,11 +220,13 @@ class ProductActivity : AppCompatActivity() {
             .child(product.productId!!)
             .setValue(product)
             .addOnSuccessListener {
+                if (isFinishing || isDestroyed) return@addOnSuccessListener
                 val message = if (isEditMode) "Product updated!" else "Product added!"
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-                finish() // Go back to the product list
+                finish()
             }
             .addOnFailureListener {
+                if (isFinishing || isDestroyed) return@addOnFailureListener
                 Toast.makeText(this, "Failed to save product data.", Toast.LENGTH_SHORT).show()
                 binding.saveProductButton.isEnabled = true
             }

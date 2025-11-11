@@ -17,8 +17,8 @@ import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.User
 import com.guc_proj.signaling_proj.databinding.FragmentCartBinding
-import java.util.* // <-- Make sure this is imported
-import java.util.Locale // <-- Add this import
+import java.util.*
+import java.util.Locale
 
 class CartFragment : Fragment() {
 
@@ -79,6 +79,7 @@ class CartFragment : Fragment() {
         val cartItems = CartManager.getCartItems()
         cartAdapter.updateItems(cartItems)
 
+        if (_binding == null) return // Check if view is still valid
         if (cartItems.isEmpty()) {
             binding.emptyCartView.visibility = View.VISIBLE
             binding.cartContentGroup.visibility = View.GONE
@@ -111,10 +112,12 @@ class CartFragment : Fragment() {
 
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(buyerSnapshot: DataSnapshot) {
+                if (_binding == null) return@onDataChange
                 val buyerName = buyerSnapshot.getValue<User>()?.name ?: "Unknown Buyer"
 
                 database.child("Users").child(sellerId).addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(sellerSnapshot: DataSnapshot) {
+                        if (_binding == null) return@onDataChange
                         val sellerName = sellerSnapshot.getValue<User>()?.name ?: "Unknown Seller"
 
                         val orderId = database.child("Orders").push().key ?: UUID.randomUUID().toString()
@@ -133,6 +136,7 @@ class CartFragment : Fragment() {
                     }
 
                     override fun onCancelled(error: DatabaseError) {
+                        if (_binding == null) return@onCancelled
                         Log.e("CartFragment", "Failed to get seller name: ${error.message}")
                         Toast.makeText(context, "Failed to place order. Could not verify seller.", Toast.LENGTH_SHORT).show()
                         binding.placeOrderButton.isEnabled = true
@@ -141,6 +145,7 @@ class CartFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
+                if (_binding == null) return@onCancelled
                 Log.e("CartFragment", "Failed to get buyer name: ${error.message}")
                 Toast.makeText(context, "Failed to place order. Could not verify user.", Toast.LENGTH_SHORT).show()
                 binding.placeOrderButton.isEnabled = true
@@ -151,12 +156,14 @@ class CartFragment : Fragment() {
     private fun saveOrderToFirebase(orderId: String, order: Order) {
         database.child("Orders").child(orderId).setValue(order)
             .addOnSuccessListener {
+                if (_binding == null) return@addOnSuccessListener
                 Toast.makeText(context, "Order placed successfully!", Toast.LENGTH_SHORT).show()
                 CartManager.clearCart()
                 updateCartView()
                 binding.placeOrderButton.isEnabled = true
             }
             .addOnFailureListener {
+                if (_binding == null) return@addOnFailureListener
                 Toast.makeText(context, "Failed to place order: ${it.message}", Toast.LENGTH_SHORT).show()
                 binding.placeOrderButton.isEnabled = true
             }

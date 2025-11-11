@@ -15,6 +15,8 @@ class ShopProductsActivity : AppCompatActivity() {
     private lateinit var database: DatabaseReference
     private lateinit var productAdapter: ShopProductAdapter
     private val productList = mutableListOf<Product>()
+    private var productsQuery: Query? = null
+    private var productsListener: ValueEventListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,22 +53,38 @@ class ShopProductsActivity : AppCompatActivity() {
 
     private fun fetchProducts(sellerId: String) {
         binding.loadingIndicator.visibility = View.VISIBLE
-        database.orderByChild("sellerId").equalTo(sellerId)
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    productList.clear()
-                    for (productSnapshot in snapshot.children) {
-                        val product = productSnapshot.getValue(Product::class.java)
-                        product?.let { productList.add(it) }
-                    }
-                    productAdapter.notifyDataSetChanged()
-                    binding.loadingIndicator.visibility = View.GONE
+        productsQuery = database.orderByChild("sellerId").equalTo(sellerId)
+        productsListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (isDestroyed) return // Activity destroyed, do nothing
+                productList.clear()
+                for (productSnapshot in snapshot.children) {
+                    val product = productSnapshot.getValue(Product::class.java)
+                    product?.let { productList.add(it) }
                 }
+                productAdapter.notifyDataSetChanged()
+                binding.loadingIndicator.visibility = View.GONE
+            }
 
-                override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(this@ShopProductsActivity, "Failed to load products.", Toast.LENGTH_SHORT).show()
-                    binding.loadingIndicator.visibility = View.GONE
-                }
-            })
+            override fun onCancelled(error: DatabaseError) {
+                if (isDestroyed) return // Activity destroyed, do nothing
+                Toast.makeText(
+                    this@ShopProductsActivity,
+                    "Failed to load products.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                binding.loadingIndicator.visibility = View.GONE
+            }
+        }
+        productsQuery?.addValueEventListener(productsListener!!)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        productsListener?.let { listener ->
+            productsQuery?.removeEventListener(listener)
+        }
+        productsQuery = null
+        productsListener = null
     }
 }

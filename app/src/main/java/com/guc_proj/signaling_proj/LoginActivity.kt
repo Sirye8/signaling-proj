@@ -46,6 +46,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+            if (isFinishing || isDestroyed) return@addOnCompleteListener
             if (task.isSuccessful) {
                 Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
                 // Redirect based on role after successful login
@@ -64,9 +65,10 @@ class LoginActivity : AppCompatActivity() {
 
         userRef.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (isFinishing || isDestroyed) return@onDataChange
                 if (!snapshot.exists()) {
                     // Handle case where user exists in Auth but not in Database (rare)
-                    Toast.makeText(this@LoginActivity, "User data not found. Please register again.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(applicationContext, "User data not found. Please register again.", Toast.LENGTH_LONG).show()
                     auth.signOut() // Log out the user
                     return
                 }
@@ -79,7 +81,7 @@ class LoginActivity : AppCompatActivity() {
                     "Seller" -> Intent(this@LoginActivity, SellerHomeActivity::class.java)
                     else -> {
                         // Handle invalid or missing role
-                        Toast.makeText(this@LoginActivity, "User role is invalid or missing. Logging out.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(applicationContext, "User role is invalid or missing. Logging out.", Toast.LENGTH_LONG).show()
                         auth.signOut()
                         return // Stop execution
                     }
@@ -92,7 +94,8 @@ class LoginActivity : AppCompatActivity() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@LoginActivity, "Failed to read user role: ${error.message}", Toast.LENGTH_SHORT).show()
+                if (isFinishing || isDestroyed) return@onCancelled
+                Toast.makeText(applicationContext, "Failed to read user role: ${error.message}", Toast.LENGTH_SHORT).show()
                 auth.signOut() // Log out on error
             }
         })

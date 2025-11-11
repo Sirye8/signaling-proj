@@ -97,15 +97,13 @@ class SellerProductsFragment : Fragment() {
         productsQuery = database.orderByChild("sellerId").equalTo(sellerId)
         productsListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (_binding == null) return
                 productList.clear()
                 for (productSnapshot in snapshot.children) {
                     val product = productSnapshot.getValue(Product::class.java)
                     product?.let { productList.add(it) }
                 }
                 productAdapter.notifyDataSetChanged()
-
-                if (_binding == null) return // View destroyed, do nothing
-
                 binding.loadingIndicator.visibility = View.GONE
                 if (productList.isEmpty()) {
                     binding.emptyView.visibility = View.VISIBLE
@@ -144,18 +142,17 @@ class SellerProductsFragment : Fragment() {
             return
         }
 
-        // 1. Delete from S3
         deleteProductImageFromS3(product.photoUrl)
 
-        // 2. Delete from Firebase Database
         database.child(productId).removeValue()
             .addOnSuccessListener {
-                Toast.makeText(context, "Product deleted", Toast.LENGTH_SHORT).show()
-                // List will refresh automatically from the ValueEventListener
+                if (_binding == null) return@addOnSuccessListener
+                Toast.makeText(context?.applicationContext, "Product deleted", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
+                if (_binding == null) return@addOnFailureListener
                 Toast.makeText(
-                    context,
+                    context?.applicationContext,
                     "Failed to delete product: ${it.message}",
                     Toast.LENGTH_SHORT
                 ).show()

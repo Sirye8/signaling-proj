@@ -66,6 +66,7 @@ class SellerOrdersFragment : Fragment() {
         ordersQuery = database.orderByChild("sellerId").equalTo(sellerId)
         ordersListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (_binding == null) return // View destroyed, do nothing
                 orderList.clear()
                 for (orderSnapshot in snapshot.children) {
                     val order = orderSnapshot.getValue(Order::class.java)
@@ -74,8 +75,6 @@ class SellerOrdersFragment : Fragment() {
                 // Show newest orders first
                 orderList.reverse()
                 orderAdapter.updateOrders(orderList)
-
-                if (_binding == null) return // View destroyed, do nothing
 
                 binding.loadingIndicator.visibility = View.GONE
                 if (orderList.isEmpty()) {
@@ -119,13 +118,15 @@ class SellerOrdersFragment : Fragment() {
 
         database.child(order.orderId).child("status").setValue(newStatus)
             .addOnSuccessListener {
-                Toast.makeText(context, "Order status updated to $newStatus", Toast.LENGTH_SHORT)
+                if (_binding == null) return@addOnSuccessListener
+                Toast.makeText(context?.applicationContext, "Order status updated to $newStatus", Toast.LENGTH_SHORT)
                     .show()
                 // The ValueEventListener will automatically refresh the list
             }
             .addOnFailureListener {
+                if (_binding == null) return@addOnFailureListener
                 Toast.makeText(
-                    context,
+                    context?.applicationContext,
                     "Failed to update status: ${it.message}",
                     Toast.LENGTH_SHORT
                 ).show()

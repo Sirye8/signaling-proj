@@ -43,6 +43,7 @@ class ProfileFragment : Fragment() {
     private lateinit var transferUtility: TransferUtility
     private var selectedImageUri: Uri? = null
 
+    private var userValueListener: ValueEventListener? = null
     private val AWS_ACCESS_KEY = BuildConfig.AWS_ACCESS_KEY
     private val AWS_SECRET_KEY = BuildConfig.AWS_SECRET_KEY
     private val S3_BUCKET_NAME = BuildConfig.S3_BUCKET_NAME
@@ -96,6 +97,7 @@ class ProfileFragment : Fragment() {
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             selectedImageUri = uri
+            if (_binding == null) return@registerForActivityResult // View destroyed
             Glide.with(this).load(uri).into(binding.profileImageView)
             Toast.makeText(context, "Photo selected. Press 'Save Changes' to upload.", Toast.LENGTH_LONG).show()
         }
@@ -157,6 +159,10 @@ class ProfileFragment : Fragment() {
 
         transferObserver.setTransferListener(object : TransferListener {
             override fun onStateChanged(id: Int, state: TransferState) {
+                if (_binding == null) { // View destroyed
+                    file.delete()
+                    return
+                }
                 if (state == TransferState.COMPLETED) {
                     val photoUrl = s3Client.getUrl(S3_BUCKET_NAME, objectKey).toString()
                     saveImageUrlToFirebase(photoUrl)
@@ -167,6 +173,8 @@ class ProfileFragment : Fragment() {
             override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {}
 
             override fun onError(id: Int, ex: Exception) {
+                file.delete()
+                if (_binding == null) return@onError // View destroyed
                 Log.e("ProfileFragment_S3", "S3 Upload Error ID $id: ${ex.message}", ex)
                 val appCtx = context?.applicationContext
                 when (ex) {
@@ -180,7 +188,6 @@ class ProfileFragment : Fragment() {
                         Toast.makeText(appCtx, "An unknown upload error occurred.", Toast.LENGTH_SHORT).show()
                     }
                 }
-                file.delete()
             }
         })
     }
@@ -188,17 +195,20 @@ class ProfileFragment : Fragment() {
     private fun saveImageUrlToFirebase(photoUrl: String) {
         database.child("photoUrl").setValue(photoUrl)
             .addOnSuccessListener {
-                Toast.makeText(context, "Profile photo updated!", Toast.LENGTH_SHORT).show()
+                if (_binding == null) return@addOnSuccessListener
+                Toast.makeText(context?.applicationContext, "Profile photo updated!", Toast.LENGTH_SHORT).show()
                 selectedImageUri = null
             }
             .addOnFailureListener {
-                Toast.makeText(context, "Failed to save photo URL.", Toast.LENGTH_SHORT).show()
+                if (_binding == null) return@addOnFailureListener
+                Toast.makeText(context?.applicationContext, "Failed to save photo URL.", Toast.LENGTH_SHORT).show()
             }
     }
 
     private fun fetchUserData() {
-        database.addListenerForSingleValueEvent(object : ValueEventListener {
+        userValueListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (_binding == null) return // View destroyed, do nothing
                 val user = snapshot.getValue(User::class.java)
                 user?.let {
                     if (it.role == "Seller") {
@@ -222,9 +232,12 @@ class ProfileFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(context, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
+                if (_binding != null) {
+                    Toast.makeText(context, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
+                }
             }
-        })
+        }
+        database.addListenerForSingleValueEvent(userValueListener!!)
     }
 
     private fun updateUserData() {
@@ -235,10 +248,11 @@ class ProfileFragment : Fragment() {
             "name" to name, "phone" to phone, "address" to address
         )
         database.updateChildren(userUpdates).addOnCompleteListener { task ->
+            if (_binding == null) return@addOnCompleteListener // View destroyed
             if (task.isSuccessful && selectedImageUri == null) {
-                Toast.makeText(context, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context?.applicationContext, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
             } else if (!task.isSuccessful) {
-                Toast.makeText(context, "Failed to update profile text data.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context?.applicationContext, "Failed to update profile text data.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -316,9 +330,9 @@ class ProfileFragment : Fragment() {
             deleteS3Folder()
 
             database.removeValue().addOnCompleteListener { dbTask ->
+                val appCtx = context?.applicationContext
                 if (dbTask.isSuccessful) {
                     user.delete().addOnCompleteListener { authTask ->
-                        val appCtx = context?.applicationContext
                         if (authTask.isSuccessful) {
                             Toast.makeText(appCtx, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
                             logoutUser()
@@ -327,7 +341,7 @@ class ProfileFragment : Fragment() {
                         }
                     }
                 } else {
-                    Toast.makeText(context?.applicationContext, "Failed to delete user data.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(appCtx, "Failed to delete user data.", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -335,6 +349,10 @@ class ProfileFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        userValueListener?.let { listener ->
+            database.removeEventListener(listener)
+        }
+        userValueListener = null
         _binding = null
     }
 }

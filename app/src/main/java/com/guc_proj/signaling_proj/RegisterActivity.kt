@@ -57,6 +57,7 @@ class RegisterActivity : AppCompatActivity() {
         }
 
         auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+            if (isFinishing || isDestroyed) return@addOnCompleteListener
             if (task.isSuccessful) {
                 val firebaseUser = auth.currentUser!!
                 // Create User object including the role, photoUrl starts empty
@@ -67,6 +68,7 @@ class RegisterActivity : AppCompatActivity() {
                     .child(firebaseUser.uid)
                     .setValue(user)
                     .addOnCompleteListener { dbTask ->
+                        if (isFinishing || isDestroyed) return@addOnCompleteListener
                         if (dbTask.isSuccessful) {
                             Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
 
