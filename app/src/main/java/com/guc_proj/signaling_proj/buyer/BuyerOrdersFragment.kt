@@ -22,6 +22,9 @@ class BuyerOrdersFragment : Fragment() {
     private lateinit var orderAdapter: BuyerOrderAdapter
     private val orderList = mutableListOf<Order>()
 
+    private var ordersQuery: Query? = null
+    private var ordersListener: ValueEventListener? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -56,36 +59,50 @@ class BuyerOrdersFragment : Fragment() {
 
     private fun fetchBuyerOrders(buyerId: String) {
         binding.loadingIndicator.visibility = View.VISIBLE
-        database.orderByChild("buyerId").equalTo(buyerId)
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    orderList.clear()
-                    for (orderSnapshot in snapshot.children) {
-                        val order = orderSnapshot.getValue(Order::class.java)
-                        order?.let { orderList.add(it) }
-                    }
-                    orderList.reverse()
-                    orderAdapter.updateOrders(orderList)
-
-                    binding.loadingIndicator.visibility = View.GONE
-                    if (orderList.isEmpty()) {
-                        binding.emptyView.visibility = View.VISIBLE
-                        binding.ordersRecyclerView.visibility = View.GONE
-                    } else {
-                        binding.emptyView.visibility = View.GONE
-                        binding.ordersRecyclerView.visibility = View.VISIBLE
-                    }
+        ordersQuery = database.orderByChild("buyerId").equalTo(buyerId)
+        ordersListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                orderList.clear()
+                for (orderSnapshot in snapshot.children) {
+                    val order = orderSnapshot.getValue(Order::class.java)
+                    order?.let { orderList.add(it) }
                 }
+                orderList.reverse()
+                orderAdapter.updateOrders(orderList)
 
-                override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(context, "Failed to load orders: ${error.message}", Toast.LENGTH_SHORT).show()
+                if (_binding == null) return // View destroyed, do nothing
+
+                binding.loadingIndicator.visibility = View.GONE
+                if (orderList.isEmpty()) {
+                    binding.emptyView.visibility = View.VISIBLE
+                    binding.ordersRecyclerView.visibility = View.GONE
+                } else {
+                    binding.emptyView.visibility = View.GONE
+                    binding.ordersRecyclerView.visibility = View.VISIBLE
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                if (_binding != null) {
+                    Toast.makeText(
+                        context,
+                        "Failed to load orders: ${error.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     binding.loadingIndicator.visibility = View.GONE
                 }
-            })
+            }
+        }
+        ordersQuery?.addValueEventListener(ordersListener!!)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        ordersListener?.let { listener ->
+            ordersQuery?.removeEventListener(listener)
+        }
+        ordersQuery = null
+        ordersListener = null
         _binding = null
     }
 }

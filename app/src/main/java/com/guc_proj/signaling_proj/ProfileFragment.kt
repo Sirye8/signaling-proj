@@ -245,12 +245,13 @@ class ProfileFragment : Fragment() {
 
     private fun logoutUser() {
         auth.signOut()
-        // Check if activity is still valid
-        if (activity != null) {
-            val intent = Intent(activity, LoginActivity::class.java)
+        val hostActivity = activity
+        if (hostActivity != null && isAdded) {
+            val intent = Intent(hostActivity, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            intent.putExtra("FROM_LOGOUT", true)
             startActivity(intent)
-            activity?.finish()
+            hostActivity.finish()
         }
     }
 
@@ -317,15 +318,16 @@ class ProfileFragment : Fragment() {
             database.removeValue().addOnCompleteListener { dbTask ->
                 if (dbTask.isSuccessful) {
                     user.delete().addOnCompleteListener { authTask ->
+                        val appCtx = context?.applicationContext
                         if (authTask.isSuccessful) {
-                            Toast.makeText(context, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(appCtx, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
                             logoutUser()
                         } else {
-                            Toast.makeText(context, "Deletion failed. Please log in again and retry.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(appCtx, "Deletion failed. Please log in again and retry.", Toast.LENGTH_LONG).show()
                         }
                     }
                 } else {
-                    Toast.makeText(context, "Failed to delete user data.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context?.applicationContext, "Failed to delete user data.", Toast.LENGTH_LONG).show()
                 }
             }
         }

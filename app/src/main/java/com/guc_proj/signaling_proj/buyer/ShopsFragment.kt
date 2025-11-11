@@ -21,6 +21,9 @@ class ShopsFragment : Fragment() {
     private lateinit var shopAdapter: ShopAdapter
     private val shopList = mutableListOf<Pair<String, User>>()
 
+    private var shopsQuery: Query? = null
+    private var shopsListener: ValueEventListener? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -54,31 +57,42 @@ class ShopsFragment : Fragment() {
     private fun fetchShops() {
         binding.loadingIndicator.visibility = View.VISIBLE
         // Query Firebase for all users who have the role "Seller"
-        database.orderByChild("role").equalTo("Seller")
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    shopList.clear()
-                    for (userSnapshot in snapshot.children) {
-                        val user = userSnapshot.getValue(User::class.java)
-                        val userId = userSnapshot.key
-                        if (user != null && userId != null) {
-                            // Add both the ID and the User object to the list
-                            shopList.add(Pair(userId, user))
-                        }
+        shopsQuery = database.orderByChild("role").equalTo("Seller")
+        shopsListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                shopList.clear()
+                for (userSnapshot in snapshot.children) {
+                    val user = userSnapshot.getValue(User::class.java)
+                    val userId = userSnapshot.key
+                    if (user != null && userId != null) {
+                        // Add both the ID and the User object to the list
+                        shopList.add(Pair(userId, user))
                     }
-                    shopAdapter.notifyDataSetChanged()
-                    binding.loadingIndicator.visibility = View.GONE
                 }
+                shopAdapter.notifyDataSetChanged()
 
-                override fun onCancelled(error: DatabaseError) {
+                if (_binding == null) return // View destroyed, do nothing
+
+                binding.loadingIndicator.visibility = View.GONE
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                if (_binding != null) {
                     Toast.makeText(context, "Failed to load shops.", Toast.LENGTH_SHORT).show()
                     binding.loadingIndicator.visibility = View.GONE
                 }
-            })
+            }
+        }
+        shopsQuery?.addValueEventListener(shopsListener!!)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        shopsListener?.let { listener ->
+            shopsQuery?.removeEventListener(listener)
+        }
+        shopsQuery = null
+        shopsListener = null
         _binding = null
     }
 }

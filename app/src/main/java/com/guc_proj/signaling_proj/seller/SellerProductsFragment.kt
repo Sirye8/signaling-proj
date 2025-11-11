@@ -31,6 +31,9 @@ class SellerProductsFragment : Fragment() {
     private lateinit var productAdapter: ProductAdapter
     private val productList = mutableListOf<Product>()
 
+    private var productsQuery: Query? = null
+    private var productsListener: ValueEventListener? = null
+
     private lateinit var s3Client: AmazonS3Client
     private val AWS_ACCESS_KEY = BuildConfig.AWS_ACCESS_KEY
     private val AWS_SECRET_KEY = BuildConfig.AWS_SECRET_KEY
@@ -91,28 +94,38 @@ class SellerProductsFragment : Fragment() {
     }
 
     private fun fetchSellerProducts(sellerId: String) {
-        database.orderByChild("sellerId").equalTo(sellerId)
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    productList.clear()
-                    for (productSnapshot in snapshot.children) {
-                        val product = productSnapshot.getValue(Product::class.java)
-                        product?.let { productList.add(it) }
-                    }
-                    productAdapter.notifyDataSetChanged()
-                    binding.loadingIndicator.visibility = View.GONE
-                    if (productList.isEmpty()) {
-                        binding.emptyView.visibility = View.VISIBLE
-                    } else {
-                        binding.emptyView.visibility = View.GONE
-                    }
+        productsQuery = database.orderByChild("sellerId").equalTo(sellerId)
+        productsListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                productList.clear()
+                for (productSnapshot in snapshot.children) {
+                    val product = productSnapshot.getValue(Product::class.java)
+                    product?.let { productList.add(it) }
                 }
+                productAdapter.notifyDataSetChanged()
 
-                override fun onCancelled(error: DatabaseError) {
-                    Toast.makeText(context, "Failed to load products: ${error.message}", Toast.LENGTH_SHORT).show()
+                if (_binding == null) return // View destroyed, do nothing
+
+                binding.loadingIndicator.visibility = View.GONE
+                if (productList.isEmpty()) {
+                    binding.emptyView.visibility = View.VISIBLE
+                } else {
+                    binding.emptyView.visibility = View.GONE
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                if (_binding != null) {
+                    Toast.makeText(
+                        context,
+                        "Failed to load products: ${error.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     binding.loadingIndicator.visibility = View.GONE
                 }
-            })
+            }
+        }
+        productsQuery?.addValueEventListener(productsListener!!)
     }
 
     private fun showDeleteConfirmationDialog(product: Product) {
@@ -141,7 +154,11 @@ class SellerProductsFragment : Fragment() {
                 // List will refresh automatically from the ValueEventListener
             }
             .addOnFailureListener {
-                Toast.makeText(context, "Failed to delete product: ${it.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "Failed to delete product: ${it.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
@@ -159,7 +176,11 @@ class SellerProductsFragment : Fragment() {
                         s3Client.deleteObject(S3_BUCKET_NAME, objectKey)
                         Log.d("SellerProducts_S3", "Deleted image $objectKey from S3")
                     } catch (e: Exception) {
-                        Log.e("SellerProducts_S3", "Error deleting $objectKey from S3: ${e.message}", e)
+                        Log.e(
+                            "SellerProducts_S3",
+                            "Error deleting $objectKey from S3: ${e.message}",
+                            e
+                        )
                     }
                 }.start()
             }
@@ -170,6 +191,11 @@ class SellerProductsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        productsListener?.let { listener ->
+            productsQuery?.removeEventListener(listener)
+        }
+        productsQuery = null
+        productsListener = null
         _binding = null
     }
 }

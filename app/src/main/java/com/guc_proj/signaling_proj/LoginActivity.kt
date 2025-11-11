@@ -22,9 +22,8 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         auth = FirebaseAuth.getInstance()
-
-        // Check if user is already logged in
-        if (auth.currentUser != null) {
+        val fromLogout = intent.getBooleanExtra("FROM_LOGOUT", false)
+        if (auth.currentUser != null && !fromLogout) {
             redirectUser(auth.currentUser!!.uid)
         }
 
