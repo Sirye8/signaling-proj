@@ -41,10 +41,22 @@ class CartAdapter(
                 .placeholder(R.drawable.ic_launcher_foreground)
                 .into(productImage)
 
+            // --- MODIFIED LOGIC ---
+
+            // 1. Get the maximum stock quantity from the product.
+            //    If quantity is null, assume no limit (Int.MAX_VALUE).
+            val maxQuantity = product?.quantity ?: Int.MAX_VALUE
+
+            // 2. Set the initial state of the increase button when the view is bound
+            //    It's enabled only if the current cart quantity is LESS than the max stock
+            increaseButton.isEnabled = cartItem.quantityInCart < maxQuantity
+
+            // 3. Set OnClickListener for Remove Button
             removeButton.setOnClickListener {
                 onRemove(cartItem)
             }
 
+            // 4. Set OnClickListener for Decrease Button
             decreaseButton.setOnClickListener {
                 if (cartItem.quantityInCart > 1) {
                     cartItem.quantityInCart--
@@ -53,16 +65,26 @@ class CartAdapter(
                 } else {
                     onRemove(cartItem)
                 }
+
+                // After decreasing, the quantity is definitely less than the max,
+                // so we must ensure the increase button is re-enabled.
+                increaseButton.isEnabled = true
             }
 
+            // 5. Set OnClickListener for Increase Button
             increaseButton.setOnClickListener {
-                val maxQuantity = product?.quantity ?: Int.MAX_VALUE
-                if (cartItem.quantityInCart < maxQuantity) {
-                    cartItem.quantityInCart++
-                    quantityTextView.text = cartItem.quantityInCart.toString()
-                    onQuantityChanged(cartItem)
-                }
+                // The button is only clickable if it's enabled,
+                // so we know cartItem.quantityInCart < maxQuantity at this point.
+
+                cartItem.quantityInCart++
+                quantityTextView.text = cartItem.quantityInCart.toString()
+                onQuantityChanged(cartItem)
+
+                // After incrementing, check again. If the new quantity
+                // has reached the limit, disable the button.
+                increaseButton.isEnabled = cartItem.quantityInCart < maxQuantity
             }
+            // --- END MODIFIED LOGIC ---
         }
     }
 

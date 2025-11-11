@@ -3,11 +3,22 @@ package com.guc_proj.signaling_proj.buyer
 import com.guc_proj.signaling_proj.CartItem
 import com.guc_proj.signaling_proj.Product
 
+// We add an enum to report the status of the "addItem" operation
+enum class AddToCartStatus {
+    ADDED,
+    INCREASED,
+    LIMIT_REACHED,
+    OUT_OF_STOCK
+}
+
 object CartManager {
     private val cartItems = mutableMapOf<String, CartItem>()
 
-    fun addItem(product: Product) {
-        val productId = product.productId ?: return
+    fun addItem(product: Product): AddToCartStatus { // Modified to return a status
+        val productId = product.productId ?: return AddToCartStatus.OUT_OF_STOCK // Cannot add item without ID
+
+        // This is the maximum quantity the seller has in stock
+        val maxQuantity = product.quantity ?: 0
 
         if (cartItems.isNotEmpty() && cartItems.values.first().product?.sellerId != product.sellerId) {
             cartItems.clear()
@@ -15,11 +26,22 @@ object CartManager {
 
         val cartItem = cartItems[productId]
         if (cartItem == null) {
-            // Add new item
-            cartItems[productId] = CartItem(product, 1)
+            // This is a new item for the cart
+            return if (maxQuantity > 0) {
+                cartItems[productId] = CartItem(product, 1)
+                AddToCartStatus.ADDED
+            } else {
+                // Product is out of stock
+                AddToCartStatus.OUT_OF_STOCK
+            }
         } else {
-            if (cartItem.quantityInCart < (product.quantity ?: 1)) {
+            // Item is already in the cart, check if we can increment
+            return if (cartItem.quantityInCart < maxQuantity) {
                 cartItem.quantityInCart++
+                AddToCartStatus.INCREASED
+            } else {
+                // Cart quantity has already reached the maximum stock
+                AddToCartStatus.LIMIT_REACHED
             }
         }
     }

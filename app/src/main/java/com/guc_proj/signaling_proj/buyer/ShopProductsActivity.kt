@@ -41,9 +41,23 @@ class ShopProductsActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         productAdapter = ShopProductAdapter(productList) { product ->
-            // Add item to cart
-            CartManager.addItem(product)
-            Toast.makeText(this, "${product.name} added to cart.", Toast.LENGTH_SHORT).show()
+            // --- MODIFIED LOGIC ---
+            // Add item to cart and check the result
+            val status = CartManager.addItem(product)
+
+            // Show a message to the user based on the status
+            when (status) {
+                AddToCartStatus.ADDED, AddToCartStatus.INCREASED -> {
+                    Toast.makeText(this, "${product.name} added to cart.", Toast.LENGTH_SHORT).show()
+                }
+                AddToCartStatus.LIMIT_REACHED -> {
+                    Toast.makeText(this, "No more ${product.name} in stock.", Toast.LENGTH_SHORT).show()
+                }
+                AddToCartStatus.OUT_OF_STOCK -> {
+                    Toast.makeText(this, "${product.name} is out of stock.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            // --- END MODIFIED LOGIC ---
         }
         binding.productsRecyclerView.apply {
             layoutManager = GridLayoutManager(this@ShopProductsActivity, 2)
