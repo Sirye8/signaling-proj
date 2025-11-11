@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,14 +8,26 @@
     android:padding="8dp"
     tools:context=".buyer.BuyerOrdersFragment">
 
+    <FrameLayout
+        android:id="@+id/headerBackground"
+        android:layout_width="0dp"
+        android:layout_height="100dp"
+        android:background="@drawable/buyer_homepage_header"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
     <TextView
         android:id="@+id/ordersTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="My Orders"
+        android:textColor="@color/white"
         android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
+        android:layout_marginTop="40dp"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/ordersRecyclerView"
@@ -25,7 +38,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        tools:listitem="@layout/item_order_buyer" />
+        tools:listitem="@layout/item_order_buyer"
+        android:contentDescription="orders"/>
 
     <ProgressBar
         android:id="@+id/loadingIndicator"

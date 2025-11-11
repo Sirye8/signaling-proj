@@ -26,4 +26,6 @@
     <!-- Legacy Colors (can be removed if not used elsewhere) -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="baby_purple">#D8B4FF</color>
+    <color name="baby_purple_dark">#C285FF</color>
 </resources>

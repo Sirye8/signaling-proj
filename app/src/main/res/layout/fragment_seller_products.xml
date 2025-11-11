@@ -19,7 +19,8 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            tools:listitem="@layout/item_product_seller" />
+            tools:listitem="@layout/item_product_seller"
+            android:contentDescription="seller products"/>
 
         <ProgressBar
             android:id="@+id/loadingIndicator"

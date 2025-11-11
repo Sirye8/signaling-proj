@@ -2,14 +2,14 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_seller_products"
-        android:icon="@drawable/ic_launcher_foreground"
+        android:icon="@drawable/baseline_emoji_food_beverage_24"
         android:title="My Products" />
     <item
         android:id="@+id/nav_seller_orders"
-        android:icon="@drawable/ic_launcher_foreground"
+        android:icon="@drawable/baseline_fastfood_24"
         android:title="Orders" />
     <item
         android:id="@+id/nav_seller_profile"
-        android:icon="@drawable/ic_launcher_foreground"
+        android:icon="@drawable/baseline_account_box_24"
         android:title="Profile" />
 </menu>
