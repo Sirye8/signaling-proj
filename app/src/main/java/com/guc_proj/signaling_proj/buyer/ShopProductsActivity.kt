@@ -40,25 +40,12 @@ class ShopProductsActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        productAdapter = ShopProductAdapter(productList) { product ->
-            // --- MODIFIED LOGIC ---
-            // Add item to cart and check the result
-            val status = CartManager.addItem(product)
+        // --- THIS IS THE FIX ---
+        // We just pass the productList, no click listener.
+        // All the logic is inside the adapter now.
+        productAdapter = ShopProductAdapter(productList)
+        // --- END FIX ---
 
-            // Show a message to the user based on the status
-            when (status) {
-                AddToCartStatus.ADDED, AddToCartStatus.INCREASED -> {
-                    Toast.makeText(this, "${product.name} added to cart.", Toast.LENGTH_SHORT).show()
-                }
-                AddToCartStatus.LIMIT_REACHED -> {
-                    Toast.makeText(this, "No more ${product.name} in stock.", Toast.LENGTH_SHORT).show()
-                }
-                AddToCartStatus.OUT_OF_STOCK -> {
-                    Toast.makeText(this, "${product.name} is out of stock.", Toast.LENGTH_SHORT).show()
-                }
-            }
-            // --- END MODIFIED LOGIC ---
-        }
         binding.productsRecyclerView.apply {
             layoutManager = GridLayoutManager(this@ShopProductsActivity, 2)
             adapter = productAdapter
@@ -100,5 +87,13 @@ class ShopProductsActivity : AppCompatActivity() {
         }
         productsQuery = null
         productsListener = null
+    }
+
+    // This makes sure the quantities are correct when you come back to this screen
+    override fun onResume() {
+        super.onResume()
+        if (::productAdapter.isInitialized) {
+            productAdapter.notifyDataSetChanged()
+        }
     }
 }

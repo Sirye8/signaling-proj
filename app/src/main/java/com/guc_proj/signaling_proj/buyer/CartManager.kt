@@ -3,7 +3,6 @@ package com.guc_proj.signaling_proj.buyer
 import com.guc_proj.signaling_proj.CartItem
 import com.guc_proj.signaling_proj.Product
 
-// We add an enum to report the status of the "addItem" operation
 enum class AddToCartStatus {
     ADDED,
     INCREASED,
@@ -14,10 +13,9 @@ enum class AddToCartStatus {
 object CartManager {
     private val cartItems = mutableMapOf<String, CartItem>()
 
-    fun addItem(product: Product): AddToCartStatus { // Modified to return a status
-        val productId = product.productId ?: return AddToCartStatus.OUT_OF_STOCK // Cannot add item without ID
+    fun addItem(product: Product): AddToCartStatus {
+        val productId = product.productId ?: return AddToCartStatus.OUT_OF_STOCK
 
-        // This is the maximum quantity the seller has in stock
         val maxQuantity = product.quantity ?: 0
 
         if (cartItems.isNotEmpty() && cartItems.values.first().product?.sellerId != product.sellerId) {
@@ -26,24 +24,44 @@ object CartManager {
 
         val cartItem = cartItems[productId]
         if (cartItem == null) {
-            // This is a new item for the cart
             return if (maxQuantity > 0) {
                 cartItems[productId] = CartItem(product, 1)
                 AddToCartStatus.ADDED
             } else {
-                // Product is out of stock
                 AddToCartStatus.OUT_OF_STOCK
             }
         } else {
-            // Item is already in the cart, check if we can increment
             return if (cartItem.quantityInCart < maxQuantity) {
                 cartItem.quantityInCart++
                 AddToCartStatus.INCREASED
             } else {
-                // Cart quantity has already reached the maximum stock
                 AddToCartStatus.LIMIT_REACHED
             }
         }
+    }
+
+    /**
+     * NEW: Decreases the quantity of an item in the cart.
+     * Returns the new quantity, or 0 if the item is removed.
+     */
+    fun decreaseItem(productId: String): Int {
+        val cartItem = cartItems[productId] ?: return 0
+
+        cartItem.quantityInCart--
+
+        if (cartItem.quantityInCart <= 0) {
+            removeItem(productId)
+            return 0
+        }
+        return cartItem.quantityInCart
+    }
+
+    /**
+     * NEW: Gets the current quantity of a specific item in the cart.
+     * Returns 0 if the item is not in the cart.
+     */
+    fun getQuantity(productId: String): Int {
+        return cartItems[productId]?.quantityInCart ?: 0
     }
 
     fun removeItem(productId: String) {
