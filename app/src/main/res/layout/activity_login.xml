@@ -4,8 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/md_theme_background"
     android:fillViewport="true"
+    android:fitsSystemWindows="true"
     tools:context=".LoginActivity">
 
     <LinearLayout
@@ -26,8 +26,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="Welcome Back!"
-            android:textAppearance="@style/TextAppearance.Material3.HeadlineLarge"
-            android:textColor="@color/md_theme_onBackground" />
+            android:textAppearance="@style/TextAppearance.Material3.HeadlineLarge" />
 
         <TextView
             android:layout_width="wrap_content"
