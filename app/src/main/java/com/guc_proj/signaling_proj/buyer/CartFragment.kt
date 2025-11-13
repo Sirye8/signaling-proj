@@ -1,5 +1,6 @@
 package com.guc_proj.signaling_proj.buyer
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -8,9 +9,12 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.viewpager2.widget.ViewPager2
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.guc_proj.signaling_proj.BuyerHomeActivity
 import com.guc_proj.signaling_proj.Order
+import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.User
 import com.guc_proj.signaling_proj.databinding.FragmentCartBinding
 import java.util.*
@@ -38,6 +42,10 @@ class CartFragment : Fragment() {
         auth = FirebaseAuth.getInstance()
         setupRecyclerView()
         updateCartView()
+
+        binding.addMoreItemsButton.setOnClickListener {
+            navigateToAddMoreItems()
+        }
 
         binding.placeOrderButton.setOnClickListener {
             placeOrder()
@@ -106,7 +114,7 @@ class CartFragment : Fragment() {
         binding.placeOrderButton.isEnabled = false
         Toast.makeText(context, "Placing order...", Toast.LENGTH_SHORT).show()
 
-        // LOGIC CHANGE: Decrement stock immediately when placing order
+        // Decrement stock immediately when placing order
         decrementStockForOrder(items)
 
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
@@ -178,6 +186,42 @@ class CartFragment : Fragment() {
                 Toast.makeText(context, "Failed to place order: ${it.message}", Toast.LENGTH_SHORT).show()
                 binding.placeOrderButton.isEnabled = true
             }
+    }
+
+    private fun navigateToAddMoreItems() {
+        val currentSellerId = CartManager.getSellerId()
+
+        if (currentSellerId != null) {
+            // Cart has items, go back to that seller's shop
+            // We fetch the seller's name for the activity title
+            database.child("Users").child(currentSellerId).addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (_binding == null) return
+                    val sellerName = snapshot.getValue(User::class.java)?.name
+
+                    val intent = Intent(activity, ShopProductsActivity::class.java)
+                    intent.putExtra("SELLER_ID", currentSellerId)
+                    intent.putExtra("SELLER_NAME", sellerName)
+                    startActivity(intent)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    if (_binding == null) return
+                    // Fallback: just send with ID if name fetch fails
+                    val intent = Intent(activity, ShopProductsActivity::class.java)
+                    intent.putExtra("SELLER_ID", currentSellerId)
+                    startActivity(intent)
+                }
+            })
+
+        } else {
+            // Cart is empty, send user to the main Shops tab (index 0)
+            (activity as? BuyerHomeActivity)?.let {
+                // Find the ViewPager from the host activity and set its item
+                val viewPager = it.findViewById<ViewPager2>(R.id.buyer_view_pager)
+                viewPager.currentItem = 0
+            } ?: Toast.makeText(context, "Cannot find shops", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onResume() {

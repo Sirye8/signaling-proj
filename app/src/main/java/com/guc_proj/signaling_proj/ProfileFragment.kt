@@ -36,16 +36,13 @@ class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
-
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
     private var currentUserUid: String? = null
     private var currentUser: User? = null
-
     private lateinit var s3Client: AmazonS3Client
     private lateinit var transferUtility: TransferUtility
     private var selectedImageUri: Uri? = null
-
     private var userValueListener: ValueEventListener? = null
     private val AWS_ACCESS_KEY = BuildConfig.AWS_ACCESS_KEY
     private val AWS_SECRET_KEY = BuildConfig.AWS_SECRET_KEY
@@ -177,7 +174,9 @@ class ProfileFragment : Fragment() {
 
             override fun onError(id: Int, ex: Exception) {
                 file.delete()
-                if (_binding == null) return@onError // View destroyed
+                if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
+                    return
+                }
                 Log.e("ProfileFragment_S3", "S3 Upload Error ID $id: ${ex.message}", ex)
                 val appCtx = context?.applicationContext
                 when (ex) {
@@ -203,7 +202,9 @@ class ProfileFragment : Fragment() {
                 selectedImageUri = null
             }
             .addOnFailureListener {
-                if (_binding == null) return@addOnFailureListener
+                if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
+                    return@addOnFailureListener
+                }
                 Toast.makeText(context?.applicationContext, "Failed to save photo URL.", Toast.LENGTH_SHORT).show()
             }
     }
@@ -235,7 +236,7 @@ class ProfileFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                if (_binding != null) {
+                if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
                     Toast.makeText(context, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -251,7 +252,9 @@ class ProfileFragment : Fragment() {
             "name" to name, "phone" to phone, "address" to address
         )
         database.updateChildren(userUpdates).addOnCompleteListener { task ->
-            if (_binding == null) return@addOnCompleteListener // View destroyed
+            if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
+                return@addOnCompleteListener // View destroyed or finishing
+            }
             if (task.isSuccessful && selectedImageUri == null) {
                 Toast.makeText(context?.applicationContext, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
             } else if (!task.isSuccessful) {
@@ -263,6 +266,7 @@ class ProfileFragment : Fragment() {
     private fun logoutUser() {
         val hostActivity = activity
         if (hostActivity != null && isAdded) {
+            auth.signOut()
             val intent = Intent(hostActivity, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             intent.putExtra("FROM_LOGOUT", true)
@@ -283,7 +287,9 @@ class ProfileFragment : Fragment() {
     private fun deleteUserAccount() {
         val user = auth.currentUser
         if (user == null || currentUserUid == null) {
-            Toast.makeText(context, "Not logged in.", Toast.LENGTH_SHORT).show()
+            if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
+                Toast.makeText(context, "Not logged in.", Toast.LENGTH_SHORT).show()
+            }
             return
         }
 
@@ -313,6 +319,7 @@ class ProfileFragment : Fragment() {
 
         query.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                if (_binding == null) return
                 if (!snapshot.exists()) {
                     Log.d("Delete", "Seller has no products to delete.")
                     onComplete()
@@ -345,8 +352,10 @@ class ProfileFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e("Delete", "Failed to query products for deletion: ${error.message}")
-                Toast.makeText(context, "Failed to delete products. Aborting.", Toast.LENGTH_LONG).show()
+                if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
+                    Log.e("Delete", "Failed to query products for deletion: ${error.message}")
+                    Toast.makeText(context, "Failed to delete products. Aborting.", Toast.LENGTH_LONG).show()
+                }
             }
         })
     }
@@ -361,9 +370,15 @@ class ProfileFragment : Fragment() {
 
         // 2. Delete "Users" DB entry
         database.removeValue().addOnCompleteListener { dbTask ->
+            if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
+                return@addOnCompleteListener
+            }
             if (dbTask.isSuccessful) {
                 // 3. Delete Auth user
                 user.delete().addOnCompleteListener { authTask ->
+                    if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
+                        return@addOnCompleteListener
+                    }
                     if (authTask.isSuccessful) {
                         Toast.makeText(appCtx, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
                         logoutUser()
@@ -449,10 +464,6 @@ class ProfileFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        if (activity?.isFinishing == true && auth.currentUser != null) {
-            auth.signOut()
-        }
-
         userValueListener?.let { listener ->
             database.removeEventListener(listener)
         }

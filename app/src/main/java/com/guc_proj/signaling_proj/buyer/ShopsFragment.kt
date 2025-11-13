@@ -74,10 +74,19 @@ class ShopsFragment : Fragment() {
                 if (_binding == null) return // View destroyed, do nothing
 
                 binding.loadingIndicator.visibility = View.GONE
+
+                // Check if the list is empty and toggle visibility
+                if (shopList.isEmpty()) {
+                    binding.emptyView.visibility = View.VISIBLE
+                    binding.shopsRecyclerView.visibility = View.GONE
+                } else {
+                    binding.emptyView.visibility = View.GONE
+                    binding.shopsRecyclerView.visibility = View.VISIBLE
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                if (_binding != null) {
+                if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
                     Toast.makeText(context, "Failed to load shops.", Toast.LENGTH_SHORT).show()
                     binding.loadingIndicator.visibility = View.GONE
                 }

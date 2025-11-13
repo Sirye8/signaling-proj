@@ -83,7 +83,7 @@ class BuyerOrdersFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                if (_binding != null) {
+                if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
                     Toast.makeText(
                         context,
                         "Failed to load orders: ${error.message}",

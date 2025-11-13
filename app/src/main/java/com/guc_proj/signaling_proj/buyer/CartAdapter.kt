@@ -41,8 +41,6 @@ class CartAdapter(
                 .placeholder(R.drawable.ic_launcher_foreground)
                 .into(productImage)
 
-            // --- MODIFIED LOGIC ---
-
             // 1. Get the maximum stock quantity from the product.
             //    If quantity is null, assume no limit (Int.MAX_VALUE).
             val maxQuantity = product?.quantity ?: Int.MAX_VALUE
@@ -84,7 +82,6 @@ class CartAdapter(
                 // has reached the limit, disable the button.
                 increaseButton.isEnabled = cartItem.quantityInCart < maxQuantity
             }
-            // --- END MODIFIED LOGIC ---
         }
     }
 

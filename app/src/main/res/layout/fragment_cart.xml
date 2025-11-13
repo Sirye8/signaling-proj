@@ -46,7 +46,7 @@
         android:id="@+id/cartContentGroup"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:constraint_referenced_ids="cartRecyclerView,totalPriceTextView,placeOrderButton,clearCartButton" />
+        app:constraint_referenced_ids="cartRecyclerView,totalPriceTextView,addMoreItemsButton,placeOrderButton,clearCartButton" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/cartRecyclerView"
@@ -67,9 +67,19 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-        app:layout_constraintBottom_toTopOf="@+id/placeOrderButton"
+        app:layout_constraintBottom_toTopOf="@+id/addMoreItemsButton"
         app:layout_constraintEnd_toEndOf="parent"
         tools:text="Total: $99.99" />
+
+    <Button
+        android:id="@+id/addMoreItemsButton"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Add More Items"
+        app:layout_constraintBottom_toTopOf="@+id/placeOrderButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <Button
         android:id="@+id/placeOrderButton"

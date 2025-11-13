@@ -86,7 +86,7 @@ class SellerOrdersFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                if (_binding != null) {
+                if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
                     Toast.makeText(context, "Failed: ${error.message}", Toast.LENGTH_SHORT).show()
                     binding.loadingIndicator.visibility = View.GONE
                 }
@@ -107,11 +107,9 @@ class SellerOrdersFragment : Fragment() {
     private fun updateOrderStatus(order: Order, newStatus: String) {
         if (order.orderId == null) return
 
-        // LOGIC CHANGE: Increment stock if order is Rejected
         if (order.status != Order.STATUS_REJECTED && newStatus == Order.STATUS_REJECTED) {
             incrementStockForOrder(order)
         }
-        // Note: We REMOVED the decrement logic for "Accepted" because it now happens on "Pending" creation in CartFragment.
 
         database.child(order.orderId).child("status").setValue(newStatus)
             .addOnSuccessListener {
