@@ -28,7 +28,9 @@ import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.databinding.FragmentProfileBinding
 import java.io.File
 import java.io.FileOutputStream
+import java.net.URL
 import java.util.UUID
+import kotlin.concurrent.thread
 
 class ProfileFragment : Fragment() {
 
@@ -38,6 +40,7 @@ class ProfileFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
     private var currentUserUid: String? = null
+    private var currentUser: User? = null
 
     private lateinit var s3Client: AmazonS3Client
     private lateinit var transferUtility: TransferUtility
@@ -60,15 +63,15 @@ class ProfileFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser
+        val firebaseUser = auth.currentUser
 
-        if (currentUser == null) {
+        if (firebaseUser == null) {
             logoutUser() // User shouldn't be here
             return
         }
 
-        currentUserUid = currentUser.uid
-        binding.emailEditText.setText(currentUser.email)
+        currentUserUid = firebaseUser.uid
+        binding.emailEditText.setText(firebaseUser.email)
         database = FirebaseDatabase.getInstance().getReference("Users").child(currentUserUid!!)
 
         initS3Client()
@@ -209,8 +212,8 @@ class ProfileFragment : Fragment() {
         userValueListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (_binding == null) return // View destroyed, do nothing
-                val user = snapshot.getValue(User::class.java)
-                user?.let {
+                currentUser = snapshot.getValue(User::class.java) // <-- STORE USER
+                currentUser?.let {
                     if (it.role == "Seller") {
                         binding.nameTextInputLayout.hint = "Shop Name"
                     } else {
@@ -258,7 +261,6 @@ class ProfileFragment : Fragment() {
     }
 
     private fun logoutUser() {
-        auth.signOut()
         val hostActivity = activity
         if (hostActivity != null && isAdded) {
             val intent = Intent(hostActivity, LoginActivity::class.java)
@@ -272,13 +274,135 @@ class ProfileFragment : Fragment() {
     private fun showDeleteConfirmationDialog() {
         AlertDialog.Builder(requireContext())
             .setTitle("Delete Account")
-            .setMessage("Are you sure you want to permanently delete your account?")
+            .setMessage("Are you sure you want to permanently delete your account? This action cannot be undone.")
             .setPositiveButton("Delete") { _, _ -> deleteUserAccount() }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun deleteS3Folder() {
+    private fun deleteUserAccount() {
+        val user = auth.currentUser
+        if (user == null || currentUserUid == null) {
+            Toast.makeText(context, "Not logged in.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Check if the user is a seller
+        if (currentUser?.role == "Seller") {
+            // Start the seller data deletion chain
+            Toast.makeText(context, "Deleting seller products...", Toast.LENGTH_SHORT).show()
+            deleteAllSellerProducts {
+                // This is the callback, executed after products are deleted
+                Log.d("Delete", "Seller products deleted. Deleting user profile...")
+                // Now delete the user's profile folder and DB entry
+                deleteUserDbAndAuth()
+            }
+        } else {
+            // User is a Buyer, just delete their profile
+            Log.d("Delete", "User is a Buyer. Deleting user profile...")
+            deleteUserDbAndAuth()
+        }
+    }
+
+    // Finds and deletes all products and S3 images for the current seller.
+    private fun deleteAllSellerProducts(onComplete: () -> Unit) {
+        val productsRef = FirebaseDatabase.getInstance().getReference("Products")
+        val sellerId = currentUserUid ?: return
+
+        val query = productsRef.orderByChild("sellerId").equalTo(sellerId)
+
+        query.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (!snapshot.exists()) {
+                    Log.d("Delete", "Seller has no products to delete.")
+                    onComplete()
+                    return
+                }
+
+                val productCount = snapshot.childrenCount
+                var deletedCount = 0
+
+                Log.d("Delete", "Found $productCount products to delete.")
+
+                for (productSnapshot in snapshot.children) {
+                    val product = productSnapshot.getValue(Product::class.java)
+
+                    // 1. Delete S3 image
+                    product?.photoUrl?.let {
+                        deleteProductImageFromS3(it)
+                    }
+
+                    // 2. Delete product from DB
+                    productSnapshot.ref.removeValue().addOnCompleteListener {
+                        deletedCount++
+                        // When the last product is deleted, call the callback
+                        if (deletedCount.toLong() == productCount) {
+                            Log.d("Delete", "Finished deleting all products from DB.")
+                            onComplete()
+                        }
+                    }
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("Delete", "Failed to query products for deletion: ${error.message}")
+                Toast.makeText(context, "Failed to delete products. Aborting.", Toast.LENGTH_LONG).show()
+            }
+        })
+    }
+
+    // Deletes the user's S3 profile photo folder, their "Users" entry, and their Auth account.
+    private fun deleteUserDbAndAuth() {
+        val user = auth.currentUser ?: return
+        val appCtx = context?.applicationContext
+
+        // 1. Delete S3 profile photo folder
+        deleteS3ProfileFolder()
+
+        // 2. Delete "Users" DB entry
+        database.removeValue().addOnCompleteListener { dbTask ->
+            if (dbTask.isSuccessful) {
+                // 3. Delete Auth user
+                user.delete().addOnCompleteListener { authTask ->
+                    if (authTask.isSuccessful) {
+                        Toast.makeText(appCtx, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
+                        logoutUser()
+                    } else {
+                        Toast.makeText(appCtx, "Deletion failed. Please log in again and retry.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } else {
+                Toast.makeText(appCtx, "Failed to delete user data.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Deletes a specific product image file from S3.
+    private fun deleteProductImageFromS3(photoUrl: String) {
+        if (!::s3Client.isInitialized) {
+            Log.e("ProfileFragment_S3", "S3 client not init or photoUrl is null.")
+            return
+        }
+
+        try {
+            val objectKey = URL(photoUrl).path.substring(1) // remove leading '/'
+            if (objectKey.isNotBlank()) {
+                thread { // Run on a background thread
+                    try {
+                        s3Client.deleteObject(S3_BUCKET_NAME, objectKey)
+                        Log.d("ProfileFragment_S3", "Deleted product image $objectKey from S3")
+                    } catch (e: Exception) {
+                        Log.e("ProfileFragment_S3", "Error deleting $objectKey from S3: ${e.message}", e)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileFragment_S3", "Error parsing S3 URL: ${e.message}", e)
+        }
+    }
+
+    // Deletes the entire S3 folder for the user's profile photos.
+    private fun deleteS3ProfileFolder() {
         if (!::s3Client.isInitialized) {
             Log.e("ProfileFragment_S3", "S3 client not initialized, skipping deletion.")
             return
@@ -290,7 +414,7 @@ class ProfileFragment : Fragment() {
 
         val folderKey = "profile-photos/$currentUserUid/"
 
-        Thread {
+        thread { // Run on a background thread
             try {
                 Log.d("ProfileFragment_S3", "Listing objects for deletion in prefix: $folderKey")
                 val listRequest = ListObjectsRequest()
@@ -320,35 +444,15 @@ class ProfileFragment : Fragment() {
             } catch (e: Exception) {
                 Log.e("ProfileFragment_S3", "Generic error deleting S3 folder: ${e.message}", e)
             }
-        }.start()
-    }
-
-    private fun deleteUserAccount() {
-        val user = auth.currentUser
-        if (user != null && currentUserUid != null) {
-
-            deleteS3Folder()
-
-            database.removeValue().addOnCompleteListener { dbTask ->
-                val appCtx = context?.applicationContext
-                if (dbTask.isSuccessful) {
-                    user.delete().addOnCompleteListener { authTask ->
-                        if (authTask.isSuccessful) {
-                            Toast.makeText(appCtx, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
-                            logoutUser()
-                        } else {
-                            Toast.makeText(appCtx, "Deletion failed. Please log in again and retry.", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                } else {
-                    Toast.makeText(appCtx, "Failed to delete user data.", Toast.LENGTH_LONG).show()
-                }
-            }
         }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        if (activity?.isFinishing == true && auth.currentUser != null) {
+            auth.signOut()
+        }
+
         userValueListener?.let { listener ->
             database.removeEventListener(listener)
         }
