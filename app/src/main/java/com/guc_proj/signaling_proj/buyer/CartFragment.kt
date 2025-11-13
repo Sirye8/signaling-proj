@@ -9,10 +9,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.User
@@ -79,7 +75,7 @@ class CartFragment : Fragment() {
         val cartItems = CartManager.getCartItems()
         cartAdapter.updateItems(cartItems)
 
-        if (_binding == null) return // Check if view is still valid
+        if (_binding == null) return
         if (cartItems.isEmpty()) {
             binding.emptyCartView.visibility = View.VISIBLE
             binding.cartContentGroup.visibility = View.GONE
@@ -110,14 +106,17 @@ class CartFragment : Fragment() {
         binding.placeOrderButton.isEnabled = false
         Toast.makeText(context, "Placing order...", Toast.LENGTH_SHORT).show()
 
+        // LOGIC CHANGE: Decrement stock immediately when placing order
+        decrementStockForOrder(items)
+
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(buyerSnapshot: DataSnapshot) {
-                if (_binding == null) return@onDataChange
+                if (_binding == null) return
                 val buyerName = buyerSnapshot.getValue<User>()?.name ?: "Unknown Buyer"
 
                 database.child("Users").child(sellerId).addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(sellerSnapshot: DataSnapshot) {
-                        if (_binding == null) return@onDataChange
+                        if (_binding == null) return
                         val sellerName = sellerSnapshot.getValue<User>()?.name ?: "Unknown Seller"
 
                         val orderId = database.child("Orders").push().key ?: UUID.randomUUID().toString()
@@ -136,21 +135,33 @@ class CartFragment : Fragment() {
                     }
 
                     override fun onCancelled(error: DatabaseError) {
-                        if (_binding == null) return@onCancelled
-                        Log.e("CartFragment", "Failed to get seller name: ${error.message}")
-                        Toast.makeText(context, "Failed to place order. Could not verify seller.", Toast.LENGTH_SHORT).show()
+                        if (_binding == null) return
                         binding.placeOrderButton.isEnabled = true
                     }
                 })
             }
 
             override fun onCancelled(error: DatabaseError) {
-                if (_binding == null) return@onCancelled
-                Log.e("CartFragment", "Failed to get buyer name: ${error.message}")
-                Toast.makeText(context, "Failed to place order. Could not verify user.", Toast.LENGTH_SHORT).show()
+                if (_binding == null) return
                 binding.placeOrderButton.isEnabled = true
             }
         })
+    }
+
+    private fun decrementStockForOrder(items: Map<String, com.guc_proj.signaling_proj.CartItem>) {
+        val productsRef = FirebaseDatabase.getInstance().getReference("Products")
+        items.forEach { (productId, cartItem) ->
+            val quantityToReduce = cartItem.quantityInCart
+            productsRef.child(productId).child("quantity").runTransaction(object : Transaction.Handler {
+                override fun doTransaction(currentData: MutableData): Transaction.Result {
+                    val currentQty = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
+                    // Simple decrement, assuming sufficient stock checked by UI
+                    currentData.value = if (currentQty - quantityToReduce < 0) 0 else currentQty - quantityToReduce
+                    return Transaction.success(currentData)
+                }
+                override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {}
+            })
+        }
     }
 
     private fun saveOrderToFirebase(orderId: String, order: Order) {

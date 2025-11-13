@@ -53,7 +53,6 @@ class SellerOrdersFragment : Fragment() {
 
     private fun setupRecyclerView() {
         orderAdapter = SellerOrderAdapter(orderList) { order, newStatus ->
-            // Handle action click
             showUpdateConfirmationDialog(order, newStatus)
         }
         binding.ordersRecyclerView.apply {
@@ -67,13 +66,12 @@ class SellerOrdersFragment : Fragment() {
         ordersQuery = database.orderByChild("sellerId").equalTo(sellerId)
         ordersListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (_binding == null) return // View destroyed, do nothing
+                if (_binding == null) return
                 orderList.clear()
                 for (orderSnapshot in snapshot.children) {
                     val order = orderSnapshot.getValue(Order::class.java)
                     order?.let { orderList.add(it) }
                 }
-                // Show newest orders first
                 orderList.reverse()
                 orderAdapter.updateOrders(orderList)
 
@@ -89,11 +87,7 @@ class SellerOrdersFragment : Fragment() {
 
             override fun onCancelled(error: DatabaseError) {
                 if (_binding != null) {
-                    Toast.makeText(
-                        context,
-                        "Failed to load orders: ${error.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(context, "Failed: ${error.message}", Toast.LENGTH_SHORT).show()
                     binding.loadingIndicator.visibility = View.GONE
                 }
             }
@@ -111,83 +105,44 @@ class SellerOrdersFragment : Fragment() {
     }
 
     private fun updateOrderStatus(order: Order, newStatus: String) {
-        if (order.orderId == null) {
-            Toast.makeText(context, "Cannot update order: Invalid ID", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (order.orderId == null) return
 
-        // --- NEW LOGIC ---
-        // Check if this is the specific transition from Pending to Accepted
-        if (order.status == Order.STATUS_PENDING && newStatus == Order.STATUS_ACCEPTED) {
-            // If so, trigger the stock decrement logic
-            decrementStockForOrder(order)
+        // LOGIC CHANGE: Increment stock if order is Rejected
+        if (order.status != Order.STATUS_REJECTED && newStatus == Order.STATUS_REJECTED) {
+            incrementStockForOrder(order)
         }
-        // --- END NEW LOGIC ---
+        // Note: We REMOVED the decrement logic for "Accepted" because it now happens on "Pending" creation in CartFragment.
 
         database.child(order.orderId).child("status").setValue(newStatus)
             .addOnSuccessListener {
                 if (_binding == null) return@addOnSuccessListener
-                Toast.makeText(context?.applicationContext, "Order status updated to $newStatus", Toast.LENGTH_SHORT)
-                    .show()
-                // The ValueEventListener will automatically refresh the list
+                Toast.makeText(context?.applicationContext, "Order updated to $newStatus", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
                 if (_binding == null) return@addOnFailureListener
-                Toast.makeText(
-                    context?.applicationContext,
-                    "Failed to update status: ${it.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(context?.applicationContext, "Failed: ${it.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    /**
-     * Iterates over items in an order and decrements their quantity in the "Products" node
-     * using a Firebase Transaction to prevent race conditions.
-     */
-    private fun decrementStockForOrder(order: Order) {
+    private fun incrementStockForOrder(order: Order) {
         val productsRef = FirebaseDatabase.getInstance().getReference("Products")
 
         order.items?.forEach { (productId, cartItem) ->
-            val orderedQuantity = cartItem.quantityInCart
-            // Get a reference to the specific product's quantity
+            val quantityToRestore = cartItem.quantityInCart
             val productQuantityRef = productsRef.child(productId).child("quantity")
 
-            // Run a transaction to safely read and update the quantity
             productQuantityRef.runTransaction(object : Transaction.Handler {
                 override fun doTransaction(currentData: MutableData): Transaction.Result {
-                    // Get the current quantity
-                    val currentQuantity = currentData.getValue(Int::class.java)
-                    if (currentQuantity == null) {
-                        // Product might have been deleted, or data is corrupt
-                        // We'll just abort the transaction for this item
-                        Log.w("SellerOrdersFragment", "Product quantity for $productId is null, skipping stock update.")
-                        return Transaction.success(currentData)
-                    }
-
-                    // Calculate the new quantity
-                    val newQuantity = currentQuantity - orderedQuantity
-
-                    // Set the new value, ensuring it doesn't go below zero
-                    currentData.value = if (newQuantity < 0) 0 else newQuantity
-
+                    val currentQuantity = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
+                    currentData.value = currentQuantity + quantityToRestore
                     return Transaction.success(currentData)
                 }
-
                 override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
-                    // This is called after the transaction finishes
-                    if (error != null) {
-                        // The transaction failed
-                        Log.e("SellerOrdersFragment", "Stock decrement transaction failed for $productId: ${error.message}")
-                    } else {
-                        // The transaction succeeded
-                        Log.d("SellerOrdersFragment", "Stock decremented for $productId. New quantity: ${currentData?.value}")
-                    }
+                    if (error != null) Log.e("SellerOrders", "Stock restore failed for $productId")
                 }
             })
         }
     }
-
 
     override fun onDestroyView() {
         super.onDestroyView()

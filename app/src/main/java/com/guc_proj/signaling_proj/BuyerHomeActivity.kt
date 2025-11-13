@@ -1,5 +1,6 @@
 package com.guc_proj.signaling_proj
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -17,33 +18,39 @@ class BuyerHomeActivity : AppCompatActivity() {
         binding = ActivityBuyerHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Load default fragment
+        // Check if we need to navigate to a specific tab (e.g. Cart)
+        val navigateTo = intent.getStringExtra("NAVIGATE_TO")
         if (savedInstanceState == null) {
-            loadFragment(ShopsFragment())
+            if (navigateTo == "CART") {
+                loadFragment(CartFragment())
+                binding.bottomNavigation.selectedItemId = R.id.nav_buyer_cart
+            } else {
+                loadFragment(ShopsFragment())
+            }
         }
 
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             var selectedFragment: Fragment? = null
             when (item.itemId) {
-                R.id.nav_buyer_shops -> {
-                    selectedFragment = ShopsFragment()
-                }
-                R.id.nav_buyer_cart -> {
-                    selectedFragment = CartFragment()
-                }
-                R.id.nav_buyer_orders -> {
-                    selectedFragment = BuyerOrdersFragment()
-                }
-                R.id.nav_buyer_profile -> {
-                    selectedFragment = ProfileFragment()
-                }
+                R.id.nav_buyer_shops -> selectedFragment = ShopsFragment()
+                R.id.nav_buyer_cart -> selectedFragment = CartFragment()
+                R.id.nav_buyer_orders -> selectedFragment = BuyerOrdersFragment()
+                R.id.nav_buyer_profile -> selectedFragment = ProfileFragment()
             }
-
             if (selectedFragment != null) {
                 loadFragment(selectedFragment)
             }
-
             true
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val navigateTo = intent?.getStringExtra("NAVIGATE_TO")
+        if (navigateTo == "CART") {
+            loadFragment(CartFragment())
+            binding.bottomNavigation.selectedItemId = R.id.nav_buyer_cart
         }
     }
 

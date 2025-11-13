@@ -36,7 +36,7 @@
         android:layout_marginTop="16dp"
         android:padding="8dp"
         app:layout_constraintTop_toBottomOf="@+id/shopNameTextView"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/cartBarCard"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:listitem="@layout/item_product_buyer"
@@ -51,5 +51,55 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:visibility="gone"/>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cartBarCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:background="@color/md_theme_primaryContainer"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/cartTotalItemsText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 items"
+                    android:textColor="@color/md_theme_onPrimaryContainer"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/cartTotalPriceText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Total: $0.00"
+                    android:textColor="@color/md_theme_onPrimaryContainer"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"/>
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/viewCartButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="View Cart" />
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
