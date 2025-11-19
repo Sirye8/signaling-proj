@@ -34,7 +34,8 @@ class SellerHomeActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_seller_products -> viewPager.currentItem = 0
                 R.id.nav_seller_orders -> viewPager.currentItem = 1
-                R.id.nav_seller_profile -> viewPager.currentItem = 2
+                R.id.nav_seller_voip -> viewPager.currentItem = 2
+                R.id.nav_seller_profile -> viewPager.currentItem = 3
             }
             true
         }
@@ -45,13 +46,14 @@ class SellerHomeActivity : AppCompatActivity() {
     }
 
     private inner class SellerPageAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
-        override fun getItemCount(): Int = 3
+        override fun getItemCount(): Int = 4 // Increased count
 
         override fun createFragment(position: Int): Fragment {
             return when (position) {
                 0 -> SellerProductsFragment()
                 1 -> SellerOrdersFragment()
-                2 -> ProfileFragment()
+                2 -> VoIPFragment() // Added VoIP
+                3 -> ProfileFragment()
                 else -> SellerProductsFragment()
             }
         }

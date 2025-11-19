@@ -26,6 +26,9 @@ class BuyerHomeActivity : AppCompatActivity() {
         viewPager = binding.buyerViewPager
         pagerAdapter = BuyerPageAdapter(this)
         viewPager.adapter = pagerAdapter
+        // Disable user swipe to prevent accidental VoIP connection issues, or keep enabled.
+        // Usually better to keep enabled for consistency.
+
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
@@ -38,12 +41,12 @@ class BuyerHomeActivity : AppCompatActivity() {
                 R.id.nav_buyer_shops -> viewPager.currentItem = 0
                 R.id.nav_buyer_cart -> viewPager.currentItem = 1
                 R.id.nav_buyer_orders -> viewPager.currentItem = 2
-                R.id.nav_buyer_profile -> viewPager.currentItem = 3
+                R.id.nav_buyer_voip -> viewPager.currentItem = 3
+                R.id.nav_buyer_profile -> viewPager.currentItem = 4
             }
             true
         }
 
-        // Check if we need to navigate to a specific tab (e.g. Cart)
         val navigateTo = intent.getStringExtra("NAVIGATE_TO")
         if (savedInstanceState == null) {
             if (navigateTo == "CART") {
@@ -64,14 +67,15 @@ class BuyerHomeActivity : AppCompatActivity() {
     }
 
     private inner class BuyerPageAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
-        override fun getItemCount(): Int = 4
+        override fun getItemCount(): Int = 5 // Increased count
 
         override fun createFragment(position: Int): Fragment {
             return when (position) {
                 0 -> ShopsFragment()
                 1 -> CartFragment()
                 2 -> BuyerOrdersFragment()
-                3 -> ProfileFragment()
+                3 -> VoIPFragment() // Added VoIP
+                4 -> ProfileFragment()
                 else -> ShopsFragment()
             }
         }

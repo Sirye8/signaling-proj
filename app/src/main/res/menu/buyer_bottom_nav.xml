@@ -13,6 +13,10 @@
         android:icon="@drawable/baseline_fastfood_24"
         android:title="Orders" />
     <item
+        android:id="@+id/nav_buyer_voip"
+        android:icon="@drawable/baseline_call_24"
+        android:title="Call" />
+    <item
         android:id="@+id/nav_buyer_profile"
         android:icon="@drawable/baseline_account_box_24"
         android:title="Profile" />
