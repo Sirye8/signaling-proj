@@ -33,8 +33,11 @@ class ShopProductsActivity : AppCompatActivity() {
 
         val sellerId = intent.getStringExtra("SELLER_ID")
         val sellerName = intent.getStringExtra("SELLER_NAME")
+        binding.toolbar.title = sellerName ?: "Products"
 
-        binding.shopNameTextView.text = sellerName ?: "Products"
+        binding.toolbar.setNavigationOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
 
         if (sellerId == null) {
             Toast.makeText(this, "Shop not found.", Toast.LENGTH_LONG).show()

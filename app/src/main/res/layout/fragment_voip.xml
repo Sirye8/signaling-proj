@@ -5,15 +5,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?android:attr/colorBackground"
-    android:padding="16dp">
+    android:fitsSystemWindows="true">
 
     <TextView
         android:id="@+id/headerTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="VoIP Call"
-        android:textAppearance="@style/TextAppearance.Material3.HeadlineLarge"
+        android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
         android:textColor="?attr/colorOnBackground"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -22,129 +23,25 @@
         android:id="@+id/localIpChip"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="My IP: Finding..."
-        android:textColor="?attr/colorOnSecondaryContainer"
+        android:text="My IP: ..."
         style="@style/Widget.Material3.Chip.Assist"
-        app:chipBackgroundColor="?attr/colorSecondaryContainer"
+        android:layout_marginTop="8dp"
         app:layout_constraintTop_toBottomOf="@id/headerTitle"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp"/>
-
-    <LinearLayout
-        android:id="@+id/manualEntrySection"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="?android:attr/colorBackground"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:paddingTop="8dp">
-
-        <com.google.android.material.divider.MaterialDivider
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"/>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Manual Entry"
-            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-            android:textColor="?attr/colorOnSurface"
-            android:layout_marginBottom="12dp"/>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/ipInputLayout"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Target IP Address">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/ipEditText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="number|textUri" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/portInputLayout"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:hint="My Listening Port">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/portEditText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="number"
-                android:text="5000" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <TextView
-            android:id="@+id/timerTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="00:00"
-            android:textSize="32sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:visibility="gone"
-            android:textColor="?attr/colorError" />
-
-        <TextView
-            android:id="@+id/statusTextView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Status: Initializing..."
-            android:gravity="center"
-            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            android:textColor="?attr/colorOnSurfaceVariant"/>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="16dp">
-
-            <Button
-                android:id="@+id/startCallButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:paddingVertical="12dp"
-                android:text="Call IP"
-                style="@style/Widget.Material3.Button" />
-
-            <Button
-                android:id="@+id/toggleSpeakerButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="Speaker" />
-        </LinearLayout>
-    </LinearLayout>
+        app:layout_constraintEnd_toEndOf="parent"/>
 
     <LinearLayout
         android:id="@+id/nearbySection"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:orientation="vertical"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp"
         app:layout_constraintTop_toBottomOf="@id/localIpChip"
-        app:layout_constraintBottom_toTopOf="@id/manualEntrySection"
+        app:layout_constraintBottom_toTopOf="@id/manualEntryCard"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="8dp">
+        app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:layout_width="wrap_content"
@@ -161,26 +58,22 @@
             android:orientation="vertical"
             android:gravity="center"
             android:visibility="visible">
-
             <ProgressBar
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:indeterminateTint="?attr/colorOnSurfaceVariant"/>
-
+                android:layout_height="wrap_content"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Scanning WiFi for devices..."
-                android:layout_marginTop="16dp"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"/>
+                android:text="Scanning network..."
+                android:layout_marginTop="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>
 
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fillViewport="true">
-
             <LinearLayout
                 android:id="@+id/peersContainer"
                 android:layout_width="match_parent"
@@ -191,13 +84,116 @@
     </LinearLayout>
 
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/manualEntryCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/Widget.Material3.CardView.Filled"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Manual Dial"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                android:layout_marginBottom="12dp"/>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/ipInputLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Target IP">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/ipEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number|textUri" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/portInputLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="My Port">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/portEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="5000" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/timerTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="00:00"
+                android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
+                android:gravity="center"
+                android:visibility="gone"
+                android:textColor="?attr/colorError" />
+
+            <TextView
+                android:id="@+id/statusTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Ready"
+                android:gravity="center"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="16dp">
+
+                <Button
+                    android:id="@+id/startCallButton"
+                    style="@style/Widget.Material3.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="Call" />
+
+                <Button
+                    android:id="@+id/toggleSpeakerButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:padding="0dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:icon="@drawable/baseline_call_24"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/incomingCallLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="24dp"
         android:visibility="gone"
-        app:cardElevation="12dp"
-        app:cardCornerRadius="28dp"
+        style="@style/Widget.Material3.CardView.Filled"
         app:cardBackgroundColor="?attr/colorTertiaryContainer"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -212,8 +208,8 @@
             android:padding="32dp">
 
             <ImageView
-                android:layout_width="72dp"
-                android:layout_height="72dp"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
                 android:src="@drawable/baseline_call_24"
                 app:tint="?attr/colorOnTertiaryContainer"/>
 
@@ -222,7 +218,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Incoming Call"
-                android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
+                android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
                 android:textColor="?attr/colorOnTertiaryContainer"/>
 
             <TextView
@@ -231,13 +227,13 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="from Unknown"
-                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                 android:textColor="?attr/colorOnTertiaryContainer"/>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="40dp"
+                android:layout_marginTop="32dp"
                 android:orientation="horizontal"
                 android:gravity="center">
 
@@ -248,17 +244,15 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="16dp"
                     android:text="Decline"
-                    android:textColor="?attr/colorError"
-                    app:strokeColor="?attr/colorError"/>
+                    android:textColor="?attr/colorError" />
 
                 <Button
                     android:id="@+id/btnAccept"
+                    style="@style/Widget.Material3.Button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Accept Call"
-                    android:backgroundTint="?attr/colorPrimary"/>
+                    android:text="Answer" />
             </LinearLayout>
-
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 

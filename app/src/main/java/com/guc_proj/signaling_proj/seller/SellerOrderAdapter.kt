@@ -1,6 +1,5 @@
 package com.guc_proj.signaling_proj.seller
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -29,11 +28,12 @@ class SellerOrderAdapter(
 
     override fun onBindViewHolder(holder: OrderViewHolder, position: Int) {
         val order = orderList[position]
+        val context = holder.binding.root.context
+
         with(holder.binding) {
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
             totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
-            statusTextView.text = "Status: ${order.status}"
-
+            statusTextView.text = order.status
             // Delivery Info binding
             deliveryTypeTextView.text = "Type: ${order.deliveryType}"
             if (order.deliveryType == Order.TYPE_DELIVERY) {
@@ -42,23 +42,32 @@ class SellerOrderAdapter(
             } else {
                 deliveryAddressTextView.visibility = View.GONE
             }
-
-            // ... rest of existing logic (status color, items summary, buttons)
             when (order.status) {
-                Order.STATUS_PENDING -> statusTextView.setTextColor(Color.parseColor("#FFA500"))
-                Order.STATUS_REJECTED -> statusTextView.setTextColor(root.context.getColor(R.color.md_theme_error))
-                Order.STATUS_DELIVERED -> statusTextView.setTextColor(Color.parseColor("#008000"))
-                else -> statusTextView.setTextColor(root.context.getColor(R.color.md_theme_primary))
+                Order.STATUS_PENDING -> {
+                    statusTextView.setTextColor(context.getColor(R.color.status_orange))
+                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
+                }
+                Order.STATUS_REJECTED -> {
+                    statusTextView.setTextColor(context.getColor(R.color.md_theme_error))
+                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
+                }
+                Order.STATUS_DELIVERED -> {
+                    statusTextView.setTextColor(context.getColor(R.color.status_green))
+                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
+                }
+                else -> {
+                    statusTextView.setTextColor(context.getColor(R.color.md_theme_primary))
+                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
+                }
             }
 
+            // Items Summary
             val itemsSummary = order.items?.values?.mapNotNull { cartItem ->
                 cartItem.product?.let { product ->
-                    "${product.name ?: "Unknown Item"} x ${cartItem.quantityInCart}"
+                    "${product.name ?: "Unknown"} x${cartItem.quantityInCart}"
                 }
             }?.joinToString(", ") ?: "No items"
-
-            itemsSummaryTextView.text = "Items: $itemsSummary"
-
+            itemsSummaryTextView.text = itemsSummary
             when (order.status) {
                 Order.STATUS_PENDING -> {
                     pendingActionsLayout.visibility = View.VISIBLE

@@ -1,31 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Primary Color Palette (Purple/Violet) -->
     <color name="md_theme_primary">#6750A4</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
     <color name="md_theme_primaryContainer">#EADDFF</color>
     <color name="md_theme_onPrimaryContainer">#21005D</color>
 
-    <!-- Secondary Color Palette -->
     <color name="md_theme_secondary">#625B71</color>
     <color name="md_theme_onSecondary">#FFFFFF</color>
+    <color name="md_theme_secondaryContainer">#E8DEF8</color>
+    <color name="md_theme_onSecondaryContainer">#1D192B</color>
 
-    <!-- General UI Colors -->
+    <color name="md_theme_tertiary">#7D5260</color>
+    <color name="md_theme_onTertiary">#FFFFFF</color>
+    <color name="md_theme_tertiaryContainer">#FFD8E4</color>
+    <color name="md_theme_onTertiaryContainer">#31111D</color>
+
+    <color name="md_theme_error">#B3261E</color>
+    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="md_theme_errorContainer">#F9DEDC</color>
+    <color name="md_theme_onErrorContainer">#410E0B</color>
+
     <color name="md_theme_background">#FFFBFE</color>
     <color name="md_theme_onBackground">#1C1B1F</color>
     <color name="md_theme_surface">#FFFBFE</color>
     <color name="md_theme_onSurface">#1C1B1F</color>
+
     <color name="md_theme_surfaceVariant">#E7E0EC</color>
     <color name="md_theme_onSurfaceVariant">#49454F</color>
     <color name="md_theme_outline">#79747E</color>
 
-    <!-- Destructive Action Color -->
-    <color name="md_theme_error">#B3261E</color>
-    <color name="md_theme_onError">#FFFFFF</color>
+    <color name="status_green">#1E8E3E</color>
+    <color name="status_orange">#E65100</color>
 
-    <!-- Legacy Colors (can be removed if not used elsewhere) -->
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="baby_purple">#D8B4FF</color>
-    <color name="baby_purple_dark">#C285FF</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
 </resources>

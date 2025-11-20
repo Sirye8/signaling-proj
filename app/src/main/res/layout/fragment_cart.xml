@@ -1,233 +1,243 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    tools:context=".buyer.CartFragment">
+    android:background="?android:attr/colorBackground"
+    android:fitsSystemWindows="true">
 
-    <FrameLayout
-        android:id="@+id/headerBackground"
-        android:layout_width="0dp"
-        android:layout_height="100dp"
-        android:background="@drawable/buyer_homepage_header"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <TextView
-        android:id="@+id/cartTitle"
-        android:layout_width="wrap_content"
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="My Cart"
-        android:textColor="@color/white"
-        android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
-        android:layout_marginTop="40dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:gravity="center"/>
-
-    <TextView
-        android:id="@+id/emptyCartView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Your cart is empty."
-        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <ScrollView
-        android:id="@+id/cartContentScroll"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
-        app:layout_constraintTop_toBottomOf="@id/cartTitle"
-        app:layout_constraintBottom_toTopOf="@+id/totalsContainer"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <LinearLayout
-            android:id="@+id/cartContentGroup"
+        android:background="?attr/colorSurface">
+        <com.google.android.material.appbar.MaterialToolbar
             android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="My Cart"
+            app:titleCentered="true"/>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <TextView
+            android:id="@+id/emptyCartView"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:text="Your cart is empty."
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/cartRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                tools:listitem="@layout/item_cart"
-                android:nestedScrollingEnabled="false"/>
-
-            <Button
-                android:id="@+id/addMoreItemsButton"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="Add More Items" />
-
-            <com.google.android.material.divider.MaterialDivider
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginVertical="16dp"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Delivery Method"
-                android:textStyle="bold"
-                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"/>
-
-            <RadioGroup
-                android:id="@+id/deliveryRadioGroup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="8dp">
-                <RadioButton
-                    android:id="@+id/radioPickup"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Pick-up"
-                    android:checked="true"
-                    android:layout_marginEnd="16dp"/>
-                <RadioButton
-                    android:id="@+id/radioDelivery"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Delivery"/>
-            </RadioGroup>
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/cartContentScroll"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginBottom="16dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/totalsContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
             <LinearLayout
-                android:id="@+id/deliveryAddressSection"
+                android:id="@+id/cartContentGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone"
-                android:layout_marginTop="8dp">
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/cartRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    tools:listitem="@layout/item_cart"
+                    android:nestedScrollingEnabled="false"/>
+
+                <Button
+                    android:id="@+id/addMoreItemsButton"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="8dp"
+                    android:text="Add More Items" />
+
+                <com.google.android.material.divider.MaterialDivider
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="16dp"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Select Delivery Address"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"/>
+                    android:text="Delivery Method"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textColor="?attr/colorOnSurface"/>
 
-                <Spinner
-                    android:id="@+id/addressSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="4dp"
-                    android:background="@android:drawable/btn_dropdown"
-                    android:spinnerMode="dropdown"/>
-
-                <Button
-                    android:id="@+id/addNewAddressButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                <RadioGroup
+                    android:id="@+id/deliveryRadioGroup"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Add New Address"
-                    android:layout_marginTop="4dp"/>
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+                    <RadioButton
+                        android:id="@+id/radioPickup"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Pick-up"
+                        android:checked="true"
+                        android:layout_marginEnd="16dp"/>
+                    <RadioButton
+                        android:id="@+id/radioDelivery"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Delivery"/>
+                </RadioGroup>
+
+                <LinearLayout
+                    android:id="@+id/deliveryAddressSection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Select Delivery Address"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="?attr/colorOnSurfaceVariant"/>
+
+                    <Spinner
+                        android:id="@+id/addressSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="4dp"
+                        android:background="@android:drawable/btn_dropdown"
+                        android:spinnerMode="dropdown"/>
+
+                    <Button
+                        android:id="@+id/addNewAddressButton"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Add New Address"
+                        android:layout_marginTop="4dp"/>
+                </LinearLayout>
             </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
 
-        </LinearLayout>
-    </ScrollView>
-
-    <LinearLayout
-        android:id="@+id/totalsContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toTopOf="@id/placeOrderButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:paddingVertical="8dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/totalsContainer"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingBottom="4dp">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Subtotal:"/>
-            <TextView
-                android:id="@+id/subtotalTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:text="$10.00"
-                android:textStyle="bold"/>
-        </LinearLayout>
+            style="@style/Widget.Material3.CardView.Filled"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:layout_constraintBottom_toTopOf="@id/placeOrderButton"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginBottom="12dp">
 
-        <LinearLayout
-            android:id="@+id/deliveryFeeLayout"
-            android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="4dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Subtotal:"/>
+                    <TextView
+                        android:id="@+id/subtotalTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="$10.00"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/deliveryFeeLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    android:layout_marginBottom="4dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Delivery Fee:"/>
+                    <TextView
+                        android:id="@+id/deliveryFeeTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="$2.50"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
+                <com.google.android.material.divider.MaterialDivider
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="8dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Total"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"/>
+                    <TextView
+                        android:id="@+id/totalPriceTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="$12.50"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <Button
+            android:id="@+id/placeOrderButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:visibility="gone"
-            android:paddingBottom="4dp">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Delivery Fee:"/>
-            <TextView
-                android:id="@+id/deliveryFeeTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:text="$2.50"
-                android:textStyle="bold"/>
-        </LinearLayout>
+            android:text="Place Order"
+            app:layout_constraintBottom_toTopOf="@+id/clearCartButton"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <Button
+            android:id="@+id/clearCartButton"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Total:"
-                android:textSize="18sp"
-                android:textStyle="bold"/>
-            <TextView
-                android:id="@+id/totalPriceTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:text="$12.50"
-                android:textSize="18sp"
-                android:textColor="@color/md_theme_primary"
-                android:textStyle="bold"/>
-        </LinearLayout>
-    </LinearLayout>
+            android:text="Clear Cart"
+            android:textColor="?attr/colorError"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
-    <Button
-        android:id="@+id/placeOrderButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:paddingVertical="12dp"
-        android:text="Place Order"
-        app:layout_constraintBottom_toTopOf="@+id/clearCartButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <Button
-        android:id="@+id/clearCartButton"
-        style="@style/Widget.Material3.Button.OutlinedButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Clear Cart"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

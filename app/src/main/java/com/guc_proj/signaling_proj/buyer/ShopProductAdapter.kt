@@ -9,11 +9,10 @@ import com.bumptech.glide.Glide
 import com.guc_proj.signaling_proj.Product
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.databinding.ItemProductBuyerBinding
+import java.util.Locale
 
 class ShopProductAdapter(
     private val productList: List<Product>
-    // We remove "onAddToCartClick: (Product) -> Unit" from here
-    // as the logic is now too complex for a simple callback.
 ) : RecyclerView.Adapter<ShopProductAdapter.ProductViewHolder>() {
 
     inner class ProductViewHolder(val binding: ItemProductBuyerBinding) :
@@ -30,92 +29,84 @@ class ShopProductAdapter(
 
     override fun onBindViewHolder(holder: ProductViewHolder, position: Int) {
         val product = productList[position]
-        val productId = product.productId ?: return // Don't bind if product has no ID
+        val productId = product.productId ?: return
         val context = holder.binding.root.context
 
         with(holder.binding) {
             productName.text = product.name
-            productPrice.text = String.format("$%.2f", product.price)
+            productPrice.text = String.format(Locale.US, "$%.2f", product.price ?: 0.0)
 
             Glide.with(context)
                 .load(product.photoUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
+                .centerCrop()
                 .into(productImage)
 
-            // --- ALL NEW LOGIC ---
-
             val maxQuantity = product.quantity ?: 0
-
-            // 1. Get the current quantity from CartManager
             var currentQuantity = CartManager.getQuantity(productId)
 
-            // 2. Set the correct UI state based on quantity
+            // Toggle between "Add" button and Stepper layout
             if (currentQuantity == 0) {
-                // Not in cart: Show "Add" button, hide stepper
                 addToCartButton.visibility = View.VISIBLE
                 quantityStepperLayout.visibility = View.GONE
-                // Ensure "Add to Cart" is enabled if there is stock
+
                 addToCartButton.isEnabled = maxQuantity > 0
-                if (maxQuantity <= 0) {
-                    addToCartButton.text = "Out of Stock"
-                } else {
-                    addToCartButton.text = "Add to Cart"
-                }
+                addToCartButton.text = if (maxQuantity > 0) "Add" else "Out of Stock"
             } else {
-                // Already in cart: Hide "Add" button, show stepper
                 addToCartButton.visibility = View.GONE
                 quantityStepperLayout.visibility = View.VISIBLE
                 quantityTextView.text = currentQuantity.toString()
-                // Disable "+" button if limit is reached
+
                 increaseButton.isEnabled = currentQuantity < maxQuantity
+                increaseButton.alpha = if (increaseButton.isEnabled) 1.0f else 0.5f
             }
 
-            // 3. Set click listener for "Add to Cart"
+            // "Add to Cart" Click
             addToCartButton.setOnClickListener {
                 val status = CartManager.addItem(product)
                 if (status == AddToCartStatus.ADDED) {
-                    // Item added (quantity is 1), so switch UI
                     addToCartButton.visibility = View.GONE
                     quantityStepperLayout.visibility = View.VISIBLE
                     quantityTextView.text = "1"
-                    // Check if max quantity is 1, disable "increase" immediately
+
                     increaseButton.isEnabled = 1 < maxQuantity
-                    Toast.makeText(context, "${product.name} added.", Toast.LENGTH_SHORT).show()
+                    increaseButton.alpha = if (increaseButton.isEnabled) 1.0f else 0.5f
+
+                    Toast.makeText(context, "${product.name} added", Toast.LENGTH_SHORT).show()
                 } else if (status == AddToCartStatus.OUT_OF_STOCK) {
-                    Toast.makeText(context, "${product.name} is out of stock.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Out of stock", Toast.LENGTH_SHORT).show()
                 }
             }
 
-            // 4. Set click listener for "Increase" button (+)
+            // Increase (+) Click
             increaseButton.setOnClickListener {
                 val status = CartManager.addItem(product)
                 currentQuantity = CartManager.getQuantity(productId)
 
                 if (status == AddToCartStatus.INCREASED) {
                     quantityTextView.text = currentQuantity.toString()
-                    // Disable button if we just reached the limit
                     increaseButton.isEnabled = currentQuantity < maxQuantity
+                    increaseButton.alpha = if (increaseButton.isEnabled) 1.0f else 0.5f
                 } else if (status == AddToCartStatus.LIMIT_REACHED) {
-                    Toast.makeText(context, "No more ${product.name} in stock.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Max stock reached", Toast.LENGTH_SHORT).show()
                     increaseButton.isEnabled = false
+                    increaseButton.alpha = 0.5f
                 }
             }
 
-            // 5. Set click listener for "Decrease" button (-)
+            // Decrease (-) Click
             decreaseButton.setOnClickListener {
                 val newQuantity = CartManager.decreaseItem(productId)
 
                 if (newQuantity == 0) {
-                    // Quantity is zero, switch UI back to "Add" button
                     addToCartButton.visibility = View.VISIBLE
                     quantityStepperLayout.visibility = View.GONE
                 } else {
-                    // Update quantity text
                     quantityTextView.text = newQuantity.toString()
                 }
-
-                // We just decreased, so the "+" button must be enabled
+                // Since we decreased, we are definitely below max
                 increaseButton.isEnabled = true
+                increaseButton.alpha = 1.0f
             }
         }
     }

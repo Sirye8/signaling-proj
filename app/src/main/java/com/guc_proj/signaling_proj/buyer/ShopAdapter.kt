@@ -28,10 +28,12 @@ class ShopAdapter(
     override fun onBindViewHolder(holder: ShopViewHolder, position: Int) {
         val (sellerId, seller) = shopList[position]
         with(holder.binding) {
-            shopName.text = seller.name
+            shopName.text = seller.name ?: "Unknown Shop"
+
             Glide.with(root.context)
                 .load(seller.photoUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
+                .centerCrop()
                 .into(shopImage)
 
             root.setOnClickListener {

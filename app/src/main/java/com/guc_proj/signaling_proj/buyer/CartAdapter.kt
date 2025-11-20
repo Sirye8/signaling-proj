@@ -7,7 +7,7 @@ import com.bumptech.glide.Glide
 import com.guc_proj.signaling_proj.CartItem
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.databinding.ItemCartBinding
-import java.util.Locale // <-- Import Locale
+import java.util.Locale
 
 class CartAdapter(
     private var cartItems: List<CartItem>,
@@ -39,22 +39,19 @@ class CartAdapter(
             Glide.with(root.context)
                 .load(product?.photoUrl)
                 .placeholder(R.drawable.ic_launcher_foreground)
+                .centerCrop()
                 .into(productImage)
 
-            // 1. Get the maximum stock quantity from the product.
-            //    If quantity is null, assume no limit (Int.MAX_VALUE).
             val maxQuantity = product?.quantity ?: Int.MAX_VALUE
 
-            // 2. Set the initial state of the increase button when the view is bound
-            //    It's enabled only if the current cart quantity is LESS than the max stock
+            // Enable/Disable increase button based on stock
             increaseButton.isEnabled = cartItem.quantityInCart < maxQuantity
+            increaseButton.alpha = if (increaseButton.isEnabled) 1.0f else 0.5f
 
-            // 3. Set OnClickListener for Remove Button
             removeButton.setOnClickListener {
                 onRemove(cartItem)
             }
 
-            // 4. Set OnClickListener for Decrease Button
             decreaseButton.setOnClickListener {
                 if (cartItem.quantityInCart > 1) {
                     cartItem.quantityInCart--
@@ -64,23 +61,23 @@ class CartAdapter(
                     onRemove(cartItem)
                 }
 
-                // After decreasing, the quantity is definitely less than the max,
-                // so we must ensure the increase button is re-enabled.
-                increaseButton.isEnabled = true
+                // Re-evaluate increase button state
+                val canIncrease = cartItem.quantityInCart < maxQuantity
+                increaseButton.isEnabled = canIncrease
+                increaseButton.alpha = if (canIncrease) 1.0f else 0.5f
             }
 
-            // 5. Set OnClickListener for Increase Button
             increaseButton.setOnClickListener {
-                // The button is only clickable if it's enabled,
-                // so we know cartItem.quantityInCart < maxQuantity at this point.
+                if (cartItem.quantityInCart < maxQuantity) {
+                    cartItem.quantityInCart++
+                    quantityTextView.text = cartItem.quantityInCart.toString()
+                    onQuantityChanged(cartItem)
+                }
 
-                cartItem.quantityInCart++
-                quantityTextView.text = cartItem.quantityInCart.toString()
-                onQuantityChanged(cartItem)
-
-                // After incrementing, check again. If the new quantity
-                // has reached the limit, disable the button.
-                increaseButton.isEnabled = cartItem.quantityInCart < maxQuantity
+                // Re-evaluate increase button state
+                val canIncrease = cartItem.quantityInCart < maxQuantity
+                increaseButton.isEnabled = canIncrease
+                increaseButton.alpha = if (canIncrease) 1.0f else 0.5f
             }
         }
     }
