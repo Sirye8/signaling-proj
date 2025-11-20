@@ -44,6 +44,23 @@
             tools:text="Items: Burger x 2, Fries x 1, Soda x 1" />
 
         <TextView
+            android:id="@+id/deliveryTypeTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            tools:text="Type: Delivery" />
+
+        <TextView
+            android:id="@+id/deliveryAddressTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            android:visibility="gone"
+            tools:text="Address: 123 Main St" />
+
+        <TextView
             android:id="@+id/statusTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

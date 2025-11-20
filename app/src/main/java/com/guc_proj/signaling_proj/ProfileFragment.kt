@@ -159,7 +159,7 @@ class ProfileFragment : Fragment() {
 
         transferObserver.setTransferListener(object : TransferListener {
             override fun onStateChanged(id: Int, state: TransferState) {
-                if (_binding == null) { // View destroyed
+                if (_binding == null) {
                     file.delete()
                     return
                 }

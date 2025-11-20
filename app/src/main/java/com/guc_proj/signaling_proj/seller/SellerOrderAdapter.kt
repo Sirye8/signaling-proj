@@ -34,7 +34,16 @@ class SellerOrderAdapter(
             totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
             statusTextView.text = "Status: ${order.status}"
 
-            // Set status color
+            // Delivery Info binding
+            deliveryTypeTextView.text = "Type: ${order.deliveryType}"
+            if (order.deliveryType == Order.TYPE_DELIVERY) {
+                deliveryAddressTextView.visibility = View.VISIBLE
+                deliveryAddressTextView.text = "Addr: ${order.deliveryAddress}"
+            } else {
+                deliveryAddressTextView.visibility = View.GONE
+            }
+
+            // ... rest of existing logic (status color, items summary, buttons)
             when (order.status) {
                 Order.STATUS_PENDING -> statusTextView.setTextColor(Color.parseColor("#FFA500"))
                 Order.STATUS_REJECTED -> statusTextView.setTextColor(root.context.getColor(R.color.md_theme_error))

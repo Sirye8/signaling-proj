@@ -34,6 +34,16 @@
             tools:text="ID: -Nq...123" />
 
         <TextView
+            android:id="@+id/deliveryInfoTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            app:layout_constraintTop_toBottomOf="@id/orderIdTextView"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:text="Delivery ($2.50)"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
             android:id="@+id/totalPriceTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -50,7 +60,7 @@
             android:layout_marginTop="8dp"
             android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
             android:textStyle="bold"
-            app:layout_constraintTop_toBottomOf="@id/orderIdTextView"
+            app:layout_constraintTop_toBottomOf="@id/deliveryInfoTextView"
             app:layout_constraintStart_toStartOf="parent"
             tools:text="Status: Preparing" />
 

@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.viewpager2.widget.ViewPager2
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
@@ -18,6 +19,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.BuildConfig
 import com.guc_proj.signaling_proj.Product
+import com.guc_proj.signaling_proj.R
+import com.guc_proj.signaling_proj.SellerHomeActivity
 import com.guc_proj.signaling_proj.databinding.FragmentSellerProductsBinding
 import java.net.URL
 
@@ -62,9 +65,55 @@ class SellerProductsFragment : Fragment() {
         setupRecyclerView()
         fetchSellerProducts(currentUserId)
 
+        // --- MODIFIED: Check Address before adding product ---
         binding.fabAddProduct.setOnClickListener {
-            startActivity(Intent(activity, ProductActivity::class.java))
+            checkAddressAndNavigate(currentUserId)
         }
+    }
+
+    private fun checkAddressAndNavigate(userId: String) {
+        // Disable button to prevent multiple clicks
+        binding.fabAddProduct.isEnabled = false
+
+        val userRef = FirebaseDatabase.getInstance().getReference("Users").child(userId)
+        userRef.child("address").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                // Re-enable button
+                if (_binding != null) binding.fabAddProduct.isEnabled = true
+
+                val address = snapshot.getValue(String::class.java)
+
+                if (address.isNullOrEmpty()) {
+                    // Address is missing -> Block access and show dialog
+                    showAddressRequiredDialog()
+                } else {
+                    // Address exists -> Proceed to Add Product
+                    startActivity(Intent(activity, ProductActivity::class.java))
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                if (_binding != null) binding.fabAddProduct.isEnabled = true
+                Toast.makeText(context, "Error verifying profile: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun showAddressRequiredDialog() {
+        if (context == null) return
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Address Required")
+            .setMessage("You must add a shop address in your Profile before you can add products.")
+            .setPositiveButton("Go to Profile") { _, _ ->
+                // Navigate to the Profile Tab (Index 3 in ViewPager)
+                (activity as? SellerHomeActivity)?.let {
+                    val viewPager = it.findViewById<ViewPager2>(R.id.seller_view_pager)
+                    viewPager.currentItem = 3
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun initS3Client() {

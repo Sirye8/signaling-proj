@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.databinding.ItemOrderBuyerBinding
+import java.util.Locale
 
 class BuyerOrderAdapter(
     private var orderList: List<Order>
@@ -29,8 +30,15 @@ class BuyerOrderAdapter(
         with(holder.binding) {
             sellerNameTextView.text = order.sellerName ?: "Unknown Seller"
             orderIdTextView.text = "ID: ${order.orderId}"
-            totalPriceTextView.text = String.format("$%.2f", order.totalPrice)
+            totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
             statusTextView.text = "Status: ${order.status}"
+
+            // Show delivery info
+            if (order.deliveryType == Order.TYPE_DELIVERY) {
+                deliveryInfoTextView.text = String.format(Locale.US, "Delivery ($%.2f)", order.deliveryFee)
+            } else {
+                deliveryInfoTextView.text = "Pick-up"
+            }
 
             when (order.status) {
                 Order.STATUS_PENDING -> statusTextView.setTextColor(Color.parseColor("#FFA500")) // Orange
