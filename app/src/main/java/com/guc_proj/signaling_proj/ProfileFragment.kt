@@ -218,21 +218,31 @@ class ProfileFragment : Fragment() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (_binding == null) return
                 currentUser = snapshot.getValue(User::class.java)
-                currentUser?.let {
-                    if (it.role == "Seller") {
-                        binding.nameTextInputLayout.hint = "Shop Name"
-                    } else {
-                        binding.nameTextInputLayout.hint = "Name"
+                currentUser?.let { user ->
+
+                    // NEW: Handle UI based on Role
+                    when (user.role) {
+                        "Seller" -> {
+                            binding.nameTextInputLayout.hint = "Shop Name"
+                            binding.manageAddressesButton.visibility = View.VISIBLE
+                        }
+                        "Delivery" -> {
+                            binding.nameTextInputLayout.hint = "Name"
+                            // Delivery person does NOT see Address Management
+                            binding.manageAddressesButton.visibility = View.GONE
+                        }
+                        else -> { // Buyer
+                            binding.nameTextInputLayout.hint = "Name"
+                            binding.manageAddressesButton.visibility = View.VISIBLE
+                        }
                     }
 
-                    binding.nameEditText.setText(it.name)
-                    binding.phoneEditText.setText(it.phone)
+                    binding.nameEditText.setText(user.name)
+                    binding.phoneEditText.setText(user.phone)
 
-                    // Address handling removed from here since it's in a separate activity
-
-                    if (!it.photoUrl.isNullOrEmpty() && context != null) {
+                    if (!user.photoUrl.isNullOrEmpty() && context != null) {
                         Glide.with(this@ProfileFragment)
-                            .load(it.photoUrl)
+                            .load(user.photoUrl)
                             .placeholder(R.drawable.ic_launcher_foreground)
                             .into(binding.profileImageView)
                     } else {
@@ -306,7 +316,7 @@ class ProfileFragment : Fragment() {
                 deleteUserDbAndAuth()
             }
         } else {
-            Log.d("Delete", "User is a Buyer. Deleting user profile...")
+            Log.d("Delete", "User is a Buyer/Delivery. Deleting user profile...")
             deleteUserDbAndAuth()
         }
     }

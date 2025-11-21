@@ -42,8 +42,14 @@
             android:name=".BuyerHomeActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".SellerHomeActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".DeliveryHomeActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 

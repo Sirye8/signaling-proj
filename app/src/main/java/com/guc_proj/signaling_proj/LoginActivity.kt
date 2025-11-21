@@ -49,7 +49,6 @@ class LoginActivity : AppCompatActivity() {
             if (isFinishing || isDestroyed) return@addOnCompleteListener
             if (task.isSuccessful) {
                 Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
-                // Redirect based on role after successful login
                 redirectUser(auth.currentUser!!.uid)
             } else {
                 Toast.makeText(this, "Login failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
@@ -57,9 +56,6 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Reads the user's role from Firebase and redirects to the appropriate home activity.
-     */
     private fun redirectUser(userId: String) {
         val userRef = FirebaseDatabase.getInstance().getReference("Users").child(userId)
 
@@ -67,9 +63,8 @@ class LoginActivity : AppCompatActivity() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (isFinishing || isDestroyed) return@onDataChange
                 if (!snapshot.exists()) {
-                    // Handle case where user exists in Auth but not in Database (rare)
-                    Toast.makeText(applicationContext, "User data not found. Please register again.", Toast.LENGTH_LONG).show()
-                    auth.signOut() // Log out the user
+                    Toast.makeText(applicationContext, "User data not found.", Toast.LENGTH_LONG).show()
+                    auth.signOut()
                     return
                 }
 
@@ -79,24 +74,23 @@ class LoginActivity : AppCompatActivity() {
                 val homeIntent: Intent = when (role) {
                     "Buyer" -> Intent(this@LoginActivity, BuyerHomeActivity::class.java)
                     "Seller" -> Intent(this@LoginActivity, SellerHomeActivity::class.java)
+                    "Delivery" -> Intent(this@LoginActivity, DeliveryHomeActivity::class.java)
                     else -> {
-                        // Handle invalid or missing role
-                        Toast.makeText(applicationContext, "User role is invalid or missing. Logging out.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(applicationContext, "Invalid role.", Toast.LENGTH_LONG).show()
                         auth.signOut()
-                        return // Stop execution
+                        return
                     }
                 }
 
-                // Clear back stack and start the appropriate home activity
                 homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 startActivity(homeIntent)
-                finish() // Close LoginActivity
+                finish()
             }
 
             override fun onCancelled(error: DatabaseError) {
                 if (isFinishing || isDestroyed) return@onCancelled
-                Toast.makeText(applicationContext, "Failed to read user role: ${error.message}", Toast.LENGTH_SHORT).show()
-                auth.signOut() // Log out on error
+                Toast.makeText(applicationContext, "Database Error: ${error.message}", Toast.LENGTH_SHORT).show()
+                auth.signOut()
             }
         })
     }

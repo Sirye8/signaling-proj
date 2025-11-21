@@ -41,21 +41,24 @@
                 android:id="@+id/roleRadioGroup"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:padding="8dp">
                 <RadioButton
                     android:id="@+id/buyerRadioButton"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="I am a Buyer"
                     android:checked="true" />
                 <RadioButton
                     android:id="@+id/sellerRadioButton"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="I am a Seller" />
+                <RadioButton
+                    android:id="@+id/deliveryRadioButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="I am a Delivery Person" />
             </RadioGroup>
         </com.google.android.material.card.MaterialCardView>
 

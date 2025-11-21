@@ -46,10 +46,16 @@ class RegisterActivity : AppCompatActivity() {
         // Get selected role
         val selectedRoleId = binding.roleRadioGroup.checkedRadioButtonId
         if (selectedRoleId == -1) {
-            Toast.makeText(this, "Please select a role (Buyer/Seller)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Please select a role", Toast.LENGTH_SHORT).show()
             return
         }
-        val role = if (selectedRoleId == R.id.buyerRadioButton) "Buyer" else "Seller"
+
+        val role = when(selectedRoleId) {
+            R.id.buyerRadioButton -> "Buyer"
+            R.id.sellerRadioButton -> "Seller"
+            R.id.deliveryRadioButton -> "Delivery"
+            else -> "Buyer"
+        }
 
         if (name.isEmpty() || phone.isEmpty() || email.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
@@ -60,7 +66,6 @@ class RegisterActivity : AppCompatActivity() {
             if (isFinishing || isDestroyed) return@addOnCompleteListener
             if (task.isSuccessful) {
                 val firebaseUser = auth.currentUser!!
-                // Create User object including the role, photoUrl starts empty
                 val user = User(
                     name = name,
                     phone = phone,
@@ -69,7 +74,6 @@ class RegisterActivity : AppCompatActivity() {
                     photoUrl = ""
                 )
 
-                // Save user data to Firebase Realtime Database
                 FirebaseDatabase.getInstance().getReference("Users")
                     .child(firebaseUser.uid)
                     .setValue(user)
@@ -78,13 +82,13 @@ class RegisterActivity : AppCompatActivity() {
                         if (dbTask.isSuccessful) {
                             Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
 
-                            // Redirect to the appropriate home screen
-                            val homeIntent = if (role == "Buyer") {
-                                Intent(this, BuyerHomeActivity::class.java)
-                            } else {
-                                Intent(this, SellerHomeActivity::class.java)
+                            // Redirect based on role
+                            val homeIntent = when(role) {
+                                "Buyer" -> Intent(this, BuyerHomeActivity::class.java)
+                                "Seller" -> Intent(this, SellerHomeActivity::class.java)
+                                "Delivery" -> Intent(this, DeliveryHomeActivity::class.java)
+                                else -> Intent(this, LoginActivity::class.java)
                             }
-                            // Clear back stack and start new home activity
                             homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                             startActivity(homeIntent)
                             finish()

@@ -39,20 +39,27 @@ class SellerOrderAdapter(
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
             totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
 
-            // Date
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
             dateTextView.text = sdf.format(Date(order.timestamp))
 
-            statusTextView.text = order.status
+            // Status Text Logic
+            var displayStatus = order.status
+
+            // CUSTOM: Show "Waiting for Driver" specifically to Seller
+            if (order.deliveryType == Order.TYPE_DELIVERY && order.status == Order.STATUS_READY_FOR_PICKUP) {
+                displayStatus = "Waiting for Driver"
+            }
+
+            statusTextView.text = displayStatus
+
             val statusColor = when (order.status) {
                 Order.STATUS_PENDING -> context.getColor(R.color.status_orange)
                 Order.STATUS_REJECTED -> context.getColor(R.color.md_theme_error)
-                Order.STATUS_DELIVERED -> context.getColor(R.color.status_green)
+                Order.STATUS_DELIVERED, Order.STATUS_COMPLETED -> context.getColor(R.color.status_green)
                 else -> context.getColor(R.color.md_theme_primary)
             }
             statusTextView.setTextColor(statusColor)
 
-            // Delivery Info
             deliveryTypeTextView.text = order.deliveryType
             if (order.deliveryType == Order.TYPE_DELIVERY) {
                 deliveryAddressTextView.visibility = View.VISIBLE
@@ -61,13 +68,11 @@ class SellerOrderAdapter(
                 deliveryAddressTextView.visibility = View.GONE
             }
 
-            // Dynamic Items
             itemsContainer.removeAllViews()
             order.items?.values?.forEach { cartItem ->
                 val product = cartItem.product
                 if (product != null) {
                     val itemView = LayoutInflater.from(context).inflate(R.layout.view_order_item_row, itemsContainer, false)
-
                     val thumb = itemView.findViewById<ImageView>(R.id.itemThumb)
                     val qty = itemView.findViewById<TextView>(R.id.itemQty)
                     val name = itemView.findViewById<TextView>(R.id.itemName)
@@ -88,27 +93,50 @@ class SellerOrderAdapter(
                 }
             }
 
-            // Actions Visibility
+            // Logic for buttons based on status AND delivery type
+            pendingActionsLayout.visibility = View.GONE
+            acceptedActionsScrollView.visibility = View.GONE
+
             when (order.status) {
                 Order.STATUS_PENDING -> {
                     pendingActionsLayout.visibility = View.VISIBLE
-                    acceptedActionsScrollView.visibility = View.GONE
                 }
-                Order.STATUS_REJECTED, Order.STATUS_DELIVERED -> {
-                    pendingActionsLayout.visibility = View.GONE
-                    acceptedActionsScrollView.visibility = View.GONE
-                }
-                else -> {
-                    pendingActionsLayout.visibility = View.GONE
+                Order.STATUS_ACCEPTED -> {
                     acceptedActionsScrollView.visibility = View.VISIBLE
+                    setPreparingButton.visibility = View.VISIBLE
+                    setOutForDeliveryButton.visibility = View.GONE
+                    setDeliveredButton.visibility = View.GONE
                 }
+                Order.STATUS_PREPARING -> {
+                    acceptedActionsScrollView.visibility = View.VISIBLE
+                    setPreparingButton.visibility = View.GONE
+                    // Both types go to "Ready for Pickup" next
+                    setOutForDeliveryButton.visibility = View.VISIBLE
+                    setOutForDeliveryButton.text = "Ready for Pickup"
+                    setDeliveredButton.visibility = View.GONE
+                }
+                Order.STATUS_READY_FOR_PICKUP -> {
+                    // If it's Delivery, Seller waits for Driver (No buttons)
+                    // If it's Pickup, Seller marks Completed
+                    if (order.deliveryType == Order.TYPE_PICKUP) {
+                        acceptedActionsScrollView.visibility = View.VISIBLE
+                        setPreparingButton.visibility = View.GONE
+                        setOutForDeliveryButton.visibility = View.GONE
+                        setDeliveredButton.visibility = View.VISIBLE
+                        setDeliveredButton.text = "Mark Picked Up"
+                    } else {
+                        // Delivery: Show status but no actions
+                        acceptedActionsScrollView.visibility = View.GONE
+                    }
+                }
+                // For other states (Rejected, Delivered, Out for Delivery), no actions for seller
             }
 
             acceptButton.setOnClickListener { onActionClick(order, Order.STATUS_ACCEPTED) }
             rejectButton.setOnClickListener { onActionClick(order, Order.STATUS_REJECTED) }
             setPreparingButton.setOnClickListener { onActionClick(order, Order.STATUS_PREPARING) }
-            setOutForDeliveryButton.setOnClickListener { onActionClick(order, Order.STATUS_OUT_FOR_DELIVERY) }
-            setDeliveredButton.setOnClickListener { onActionClick(order, Order.STATUS_DELIVERED) }
+            setOutForDeliveryButton.setOnClickListener { onActionClick(order, Order.STATUS_READY_FOR_PICKUP) }
+            setDeliveredButton.setOnClickListener { onActionClick(order, Order.STATUS_COMPLETED) }
         }
     }
 
