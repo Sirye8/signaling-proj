@@ -33,7 +33,6 @@ class CartFragment : Fragment() {
     private val addressLabels = mutableListOf<String>()
     private lateinit var addressAdapter: ArrayAdapter<String>
 
-    private var sellerAddress: String? = null
     private var selectedDeliveryAddress: String? = null
     private var calculatedDeliveryFee: Double = 0.0
 
@@ -76,7 +75,6 @@ class CartFragment : Fragment() {
 
         // Initial Load
         updateCartView()
-        fetchSellerAddress()
         fetchUserAddresses()
     }
 
@@ -92,17 +90,6 @@ class CartFragment : Fragment() {
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
-    }
-
-    private fun fetchSellerAddress() {
-        val sellerId = CartManager.getSellerId() ?: return
-        // We fetch this for the record, but we no longer block the order if it's missing.
-        database.child("Users").child(sellerId).child("address").addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                sellerAddress = snapshot.getValue(String::class.java)
-            }
-            override fun onCancelled(error: DatabaseError) {}
-        })
     }
 
     private fun fetchUserAddresses() {
@@ -136,7 +123,6 @@ class CartFragment : Fragment() {
                 if (_binding != null) {
                     addressAdapter.notifyDataSetChanged()
 
-                    // --- FIX: Immediately set the selected address if list is not empty ---
                     if (userAddresses.isNotEmpty()) {
                         binding.addressSpinner.setSelection(0)
                         selectedDeliveryAddress = userAddresses[0]
@@ -244,36 +230,138 @@ class CartFragment : Fragment() {
         }
     }
 
+    // ---------------------------------------------------------
+    // NEW ROBUST ORDER PROCESSING LOGIC (Two-Phase Commit)
+    // ---------------------------------------------------------
+
     private fun attemptPlaceOrder() {
         val isDelivery = binding.radioDelivery.isChecked
-
-        // --- FIX: Removed Seller Address Validation Toast ---
-        // We no longer check if sellerAddress is null.
-
-        // 2. Validate User Address (Only if Delivery is chosen)
         if (isDelivery && selectedDeliveryAddress.isNullOrEmpty()) {
             Toast.makeText(context, "Please select a delivery address.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        placeOrder()
+        val sellerId = CartManager.getSellerId()
+        if (sellerId == null || CartManager.getCartItems().isEmpty()) {
+            Toast.makeText(context, "Cart is empty", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        binding.placeOrderButton.isEnabled = false
+        Toast.makeText(context, "Processing order...", Toast.LENGTH_SHORT).show()
+
+        val itemsToBuy = CartManager.getCartItems()
+        // Start the chain with the first item
+        reserveNextItem(itemsToBuy, 0, mutableListOf())
     }
 
-    private fun placeOrder() {
+    /**
+     * Recursively tries to reserve stock for each item.
+     * If successful, it moves to the next.
+     * If it fails, it triggers a rollback.
+     */
+    private fun reserveNextItem(
+        items: List<com.guc_proj.signaling_proj.CartItem>,
+        index: Int,
+        reservedItems: MutableList<com.guc_proj.signaling_proj.CartItem>
+    ) {
+        // BASE CASE: If we have processed all items successfully
+        if (index >= items.size) {
+            // All stock reserved! Finalize the order.
+            finalizeOrder()
+            return
+        }
+
+        val currentItem = items[index]
+        val productId = currentItem.product?.productId ?: return
+        val quantityNeeded = currentItem.quantityInCart
+
+        val productRef = FirebaseDatabase.getInstance().getReference("Products").child(productId).child("quantity")
+
+        productRef.runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val stock = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
+
+                // CRITICAL CHECK: Do we have enough stock?
+                if (stock < quantityNeeded) {
+                    // Abort this specific transaction
+                    return Transaction.abort()
+                }
+
+                // Decrement stock
+                currentData.value = stock - quantityNeeded
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                if (committed) {
+                    // Success: Add to reserved list and try the next item
+                    reservedItems.add(currentItem)
+                    reserveNextItem(items, index + 1, reservedItems)
+                } else {
+                    // Failure: Out of stock or race condition lost.
+                    // ROLLBACK everything we reserved so far.
+                    if (_binding != null && context != null) {
+                        val failedProductName = currentItem.product?.name ?: "Item"
+
+                        // --- UX IMPROVEMENT: Alert Dialog instead of Toast ---
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("Order Failed")
+                            .setMessage("Unfortunately, '$failedProductName' is out of stock or insufficient quantity available.")
+                            .setPositiveButton("OK") { dialog, _ ->
+                                dialog.dismiss()
+                            }
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show()
+
+                        rollbackStock(reservedItems)
+                    }
+                }
+            }
+        })
+    }
+
+    /**
+     * If an order fails halfway, this restores the stock for items we previously grabbed.
+     */
+    private fun rollbackStock(itemsToRestore: List<com.guc_proj.signaling_proj.CartItem>) {
+        val productsRef = FirebaseDatabase.getInstance().getReference("Products")
+
+        itemsToRestore.forEach { item ->
+            val productId = item.product?.productId ?: return@forEach
+            val quantityToRestore = item.quantityInCart
+
+            productsRef.child(productId).child("quantity").runTransaction(object : Transaction.Handler {
+                override fun doTransaction(currentData: MutableData): Transaction.Result {
+                    val currentQty = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
+                    // Add the stock back
+                    currentData.value = currentQty + quantityToRestore
+                    return Transaction.success(currentData)
+                }
+                override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                    // Rollback complete for this item
+                }
+            })
+        }
+
+        // Re-enable button so user can fix cart and try again
+        if (_binding != null) {
+            binding.placeOrderButton.isEnabled = true
+        }
+    }
+
+    /**
+     * Called ONLY when all items are successfully reserved.
+     */
+    private fun finalizeOrder() {
         val buyerId = auth.currentUser?.uid ?: return
-        val items = CartManager.getCartItemsMap()
+        val itemsMap = CartManager.getCartItemsMap()
         val sellerId = CartManager.getSellerId()
         val finalTotal = CartManager.getCartTotal() + calculatedDeliveryFee
 
-        if (items.isEmpty() || sellerId == null) return
+        if (sellerId == null) return
 
-        binding.placeOrderButton.isEnabled = false
-        Toast.makeText(context, "Placing order...", Toast.LENGTH_SHORT).show()
-
-        // Decrement Stock
-        decrementStockForOrder(items)
-
-        // Fetch Names
+        // Fetch Names and Save Order
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(buyerSnap: DataSnapshot) {
                 val buyerName = buyerSnap.getValue(User::class.java)?.name ?: "Unknown"
@@ -289,11 +377,9 @@ class CartFragment : Fragment() {
                             sellerId = sellerId,
                             buyerName = buyerName,
                             sellerName = sellerName,
-                            items = items,
+                            items = itemsMap,
                             totalPrice = finalTotal,
                             status = Order.STATUS_PENDING,
-
-                            // Delivery Info
                             deliveryType = if (binding.radioDelivery.isChecked) Order.TYPE_DELIVERY else Order.TYPE_PICKUP,
                             deliveryAddress = if (binding.radioDelivery.isChecked) selectedDeliveryAddress else null,
                             deliveryFee = calculatedDeliveryFee
@@ -301,26 +387,15 @@ class CartFragment : Fragment() {
 
                         saveOrderToFirebase(orderId, order)
                     }
-                    override fun onCancelled(e: DatabaseError) { binding.placeOrderButton.isEnabled = true }
+                    override fun onCancelled(e: DatabaseError) {
+                        if (_binding != null) binding.placeOrderButton.isEnabled = true
+                    }
                 })
             }
-            override fun onCancelled(e: DatabaseError) { binding.placeOrderButton.isEnabled = true }
+            override fun onCancelled(e: DatabaseError) {
+                if (_binding != null) binding.placeOrderButton.isEnabled = true
+            }
         })
-    }
-
-    private fun decrementStockForOrder(items: Map<String, com.guc_proj.signaling_proj.CartItem>) {
-        val productsRef = FirebaseDatabase.getInstance().getReference("Products")
-        items.forEach { (productId, cartItem) ->
-            val quantityToReduce = cartItem.quantityInCart
-            productsRef.child(productId).child("quantity").runTransaction(object : Transaction.Handler {
-                override fun doTransaction(currentData: MutableData): Transaction.Result {
-                    val currentQty = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
-                    currentData.value = if (currentQty - quantityToReduce < 0) 0 else currentQty - quantityToReduce
-                    return Transaction.success(currentData)
-                }
-                override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {}
-            })
-        }
     }
 
     private fun saveOrderToFirebase(orderId: String, order: Order) {
@@ -334,7 +409,7 @@ class CartFragment : Fragment() {
             }
             .addOnFailureListener {
                 if (_binding == null) return@addOnFailureListener
-                Toast.makeText(context, "Failed: ${it.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed to place order: ${it.message}", Toast.LENGTH_SHORT).show()
                 binding.placeOrderButton.isEnabled = true
             }
     }
