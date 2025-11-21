@@ -61,7 +61,13 @@ class RegisterActivity : AppCompatActivity() {
             if (task.isSuccessful) {
                 val firebaseUser = auth.currentUser!!
                 // Create User object including the role, photoUrl starts empty
-                val user = User(name, phone, "", email, role, "")
+                val user = User(
+                    name = name,
+                    phone = phone,
+                    email = email,
+                    role = role,
+                    photoUrl = ""
+                )
 
                 // Save user data to Firebase Realtime Database
                 FirebaseDatabase.getInstance().getReference("Users")

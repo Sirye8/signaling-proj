@@ -3,10 +3,15 @@ package com.guc_proj.signaling_proj.seller
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.databinding.ItemOrderSellerBinding
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class SellerOrderAdapter(
@@ -33,41 +38,57 @@ class SellerOrderAdapter(
         with(holder.binding) {
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
             totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
+
+            // Date
+            val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+            dateTextView.text = sdf.format(Date(order.timestamp))
+
             statusTextView.text = order.status
-            // Delivery Info binding
-            deliveryTypeTextView.text = "Type: ${order.deliveryType}"
+            val statusColor = when (order.status) {
+                Order.STATUS_PENDING -> context.getColor(R.color.status_orange)
+                Order.STATUS_REJECTED -> context.getColor(R.color.md_theme_error)
+                Order.STATUS_DELIVERED -> context.getColor(R.color.status_green)
+                else -> context.getColor(R.color.md_theme_primary)
+            }
+            statusTextView.setTextColor(statusColor)
+
+            // Delivery Info
+            deliveryTypeTextView.text = order.deliveryType
             if (order.deliveryType == Order.TYPE_DELIVERY) {
                 deliveryAddressTextView.visibility = View.VISIBLE
-                deliveryAddressTextView.text = "Addr: ${order.deliveryAddress}"
+                deliveryAddressTextView.text = order.deliveryAddress ?: "No Address Provided"
             } else {
                 deliveryAddressTextView.visibility = View.GONE
             }
-            when (order.status) {
-                Order.STATUS_PENDING -> {
-                    statusTextView.setTextColor(context.getColor(R.color.status_orange))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
-                }
-                Order.STATUS_REJECTED -> {
-                    statusTextView.setTextColor(context.getColor(R.color.md_theme_error))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
-                }
-                Order.STATUS_DELIVERED -> {
-                    statusTextView.setTextColor(context.getColor(R.color.status_green))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
-                }
-                else -> {
-                    statusTextView.setTextColor(context.getColor(R.color.md_theme_primary))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
+
+            // Dynamic Items
+            itemsContainer.removeAllViews()
+            order.items?.values?.forEach { cartItem ->
+                val product = cartItem.product
+                if (product != null) {
+                    val itemView = LayoutInflater.from(context).inflate(R.layout.view_order_item_row, itemsContainer, false)
+
+                    val thumb = itemView.findViewById<ImageView>(R.id.itemThumb)
+                    val qty = itemView.findViewById<TextView>(R.id.itemQty)
+                    val name = itemView.findViewById<TextView>(R.id.itemName)
+                    val price = itemView.findViewById<TextView>(R.id.itemPrice)
+
+                    name.text = product.name
+                    qty.text = "${cartItem.quantityInCart}x"
+                    val itemTotal = (product.price ?: 0.0) * cartItem.quantityInCart
+                    price.text = String.format(Locale.US, "$%.2f", itemTotal)
+
+                    Glide.with(context)
+                        .load(product.photoUrl)
+                        .placeholder(R.drawable.ic_launcher_foreground)
+                        .centerCrop()
+                        .into(thumb)
+
+                    itemsContainer.addView(itemView)
                 }
             }
 
-            // Items Summary
-            val itemsSummary = order.items?.values?.mapNotNull { cartItem ->
-                cartItem.product?.let { product ->
-                    "${product.name ?: "Unknown"} x${cartItem.quantityInCart}"
-                }
-            }?.joinToString(", ") ?: "No items"
-            itemsSummaryTextView.text = itemsSummary
+            // Actions Visibility
             when (order.status) {
                 Order.STATUS_PENDING -> {
                     pendingActionsLayout.visibility = View.VISIBLE

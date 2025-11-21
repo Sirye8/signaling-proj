@@ -50,6 +50,10 @@ class ProductActivity : AppCompatActivity() {
         binding = ActivityProductBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.toolbar.setNavigationOnClickListener {
+            finish() // Handle Back Button
+        }
+
         auth = FirebaseAuth.getInstance()
         currentUserId = auth.currentUser?.uid
 
@@ -67,6 +71,9 @@ class ProductActivity : AppCompatActivity() {
             }
         }
 
+        // Set dynamic title
+        binding.toolbar.title = if (isEditMode) "Edit Product" else "Add Product"
+
         initS3Client()
 
         binding.selectPhotoButton.setOnClickListener {
@@ -79,7 +86,6 @@ class ProductActivity : AppCompatActivity() {
     }
 
     private fun populateUIForEdit() {
-        binding.titleTextView.text = "Edit Product"
         binding.saveProductButton.text = "Update Product"
 
         existingProduct?.let {

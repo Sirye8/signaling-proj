@@ -55,6 +55,16 @@
             android:name=".buyer.ShopProductsActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".AddressFormActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".AddressesActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
     </application>
 
 </manifest>

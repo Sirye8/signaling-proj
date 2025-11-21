@@ -92,6 +92,14 @@ class ShopProductsActivity : AppCompatActivity() {
                 }
                 productAdapter.notifyDataSetChanged()
                 binding.loadingIndicator.visibility = View.GONE
+
+                if (productList.isEmpty()) {
+                    binding.emptyView.visibility = View.VISIBLE
+                    binding.productsRecyclerView.visibility = View.GONE
+                } else {
+                    binding.emptyView.visibility = View.GONE
+                    binding.productsRecyclerView.visibility = View.VISIBLE
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {

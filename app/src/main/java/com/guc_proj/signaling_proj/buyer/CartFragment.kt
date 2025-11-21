@@ -7,13 +7,19 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.guc_proj.signaling_proj.AddressFormActivity
+import com.guc_proj.signaling_proj.AddressItem
 import com.guc_proj.signaling_proj.BuyerHomeActivity
 import com.guc_proj.signaling_proj.Order
+import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.User
 import com.guc_proj.signaling_proj.databinding.FragmentCartBinding
 import java.util.*
@@ -28,21 +34,36 @@ class CartFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private val database = FirebaseDatabase.getInstance().reference
 
-    // Address Management
-    private val userAddresses = mutableListOf<String>()
-    private val addressLabels = mutableListOf<String>()
-    private lateinit var addressAdapter: ArrayAdapter<String>
+    // List of Address Objects
+    private val userAddresses = mutableListOf<AddressItem>()
 
-    private var selectedDeliveryAddress: String? = null
+    private var selectedDeliveryAddress: String? = null // Holds the formatted string for the Order
     private var calculatedDeliveryFee: Double = 0.0
 
-    // --- FEE CONSTANTS ---
     private val FEE_HIGH = 15.0
     private val FEE_MED = 10.0
     private val FEE_LOW = 5.0
     private val THRESHOLD_SMALL = 30.0
     private val THRESHOLD_MEDIUM = 70.0
     private val THRESHOLD_LARGE = 150.0
+
+    private val addressResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            if (data != null) {
+                val newItem = AddressItem(
+                    name = data.getStringExtra("EXTRA_NAME"),
+                    city = data.getStringExtra("EXTRA_CITY"),
+                    street = data.getStringExtra("EXTRA_STREET"),
+                    building = data.getStringExtra("EXTRA_BUILDING"),
+                    floor = data.getStringExtra("EXTRA_FLOOR"),
+                    apartment = data.getStringExtra("EXTRA_APT"),
+                    instructions = data.getStringExtra("EXTRA_INSTRUCTIONS")
+                )
+                saveNewAddress(newItem)
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -57,77 +78,115 @@ class CartFragment : Fragment() {
         auth = FirebaseAuth.getInstance()
 
         setupRecyclerView()
-        setupAddressSpinner()
+        setupAddressSelector()
 
-        // UI Listeners
-        binding.deliveryRadioGroup.setOnCheckedChangeListener { _, _ ->
-            recalculateTotals()
-        }
-
-        binding.addNewAddressButton.setOnClickListener { showAddAddressDialog() }
-
+        binding.deliveryRadioGroup.setOnCheckedChangeListener { _, _ -> recalculateTotals() }
         binding.addMoreItemsButton.setOnClickListener { navigateToAddMoreItems() }
         binding.placeOrderButton.setOnClickListener { attemptPlaceOrder() }
-        binding.clearCartButton.setOnClickListener {
-            CartManager.clearCart()
-            updateCartView()
-        }
+        binding.clearCartButton.setOnClickListener { CartManager.clearCart(); updateCartView() }
 
-        // Initial Load
         updateCartView()
         fetchUserAddresses()
     }
 
-    private fun setupAddressSpinner() {
-        addressAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, addressLabels)
-        binding.addressSpinner.adapter = addressAdapter
+    override fun onResume() {
+        super.onResume()
+        updateCartView()
+        fetchUserAddresses()
+    }
 
-        binding.addressSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (userAddresses.isNotEmpty()) {
-                    selectedDeliveryAddress = userAddresses[position]
+    private fun setupAddressSelector() {
+        binding.addressSelectorCard.setOnClickListener { showAddressBottomSheet() }
+    }
+
+    private fun showAddressBottomSheet() {
+        val dialog = BottomSheetDialog(requireContext())
+        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_addresses, null)
+
+        val recyclerView = view.findViewById<RecyclerView>(R.id.sheetAddressRecycler)
+        val addButton = view.findViewById<Button>(R.id.sheetAddAddressButton)
+
+        recyclerView.layoutManager = LinearLayoutManager(context)
+
+        recyclerView.adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+                val v = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_2, parent, false)
+                return object : RecyclerView.ViewHolder(v) {}
+            }
+
+            override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+                val item = userAddresses[position]
+                val text1 = holder.itemView.findViewById<TextView>(android.R.id.text1)
+                val text2 = holder.itemView.findViewById<TextView>(android.R.id.text2)
+
+                text1.text = item.name // e.g. "Home"
+                text2.text = item.toFormattedString() // e.g. "123 Main St..."
+
+                holder.itemView.setOnClickListener {
+                    selectedDeliveryAddress = item.toFormattedString()
+                    updateSelectedAddressUI(item.name)
+                    dialog.dismiss()
                 }
             }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
+
+            override fun getItemCount() = userAddresses.size
+        }
+
+        addButton.setOnClickListener {
+            dialog.dismiss()
+            val intent = Intent(requireContext(), AddressFormActivity::class.java)
+            addressResultLauncher.launch(intent)
+        }
+
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
+    private fun updateSelectedAddressUI(label: String? = null) {
+        if (selectedDeliveryAddress != null) {
+            binding.selectedAddressLabel.text = label ?: "Delivery Location"
+            binding.selectedAddressDetail.text = selectedDeliveryAddress
+        } else {
+            binding.selectedAddressLabel.text = "No Address Selected"
+            binding.selectedAddressDetail.text = "Tap to add..."
         }
     }
 
     private fun fetchUserAddresses() {
         val uid = auth.currentUser?.uid ?: return
 
-        database.child("Users").child(uid).addListenerForSingleValueEvent(object : ValueEventListener {
+        database.child("Users").child(uid).child("Addresses").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 userAddresses.clear()
-                addressLabels.clear()
-
-                // 1. Get Main Address (Profile)
-                val userProfile = snapshot.getValue(User::class.java)
-                val mainAddress = userProfile?.address
-
-                // Ensure main address is first in the list
-                if (!mainAddress.isNullOrEmpty()) {
-                    userAddresses.add(mainAddress)
-                    addressLabels.add("Main: $mainAddress")
-                }
-
-                // 2. Get Saved Addresses from List
-                val savedNode = snapshot.child("savedAddresses")
-                for (child in savedNode.children) {
-                    val addr = child.getValue(String::class.java)
-                    if (!addr.isNullOrEmpty() && addr != mainAddress) {
-                        userAddresses.add(addr)
-                        addressLabels.add(addr)
+                for (child in snapshot.children) {
+                    val item = child.getValue(AddressItem::class.java)
+                    if (item != null) {
+                        userAddresses.add(item)
                     }
                 }
 
+                // Auto-Select Logic
                 if (_binding != null) {
-                    addressAdapter.notifyDataSetChanged()
+                    if (userAddresses.isNotEmpty() && selectedDeliveryAddress == null) {
+                        // Default to first
+                        val default = userAddresses[0]
+                        selectedDeliveryAddress = default.toFormattedString()
+                        updateSelectedAddressUI(default.name)
+                    }
 
-                    if (userAddresses.isNotEmpty()) {
-                        binding.addressSpinner.setSelection(0)
-                        selectedDeliveryAddress = userAddresses[0]
-                    } else {
-                        selectedDeliveryAddress = null
+                    // Validation: Ensure selected address is still valid in list logic (optional but safer)
+                    if (selectedDeliveryAddress != null) {
+                        val exists = userAddresses.any { it.toFormattedString() == selectedDeliveryAddress }
+                        if (!exists) {
+                            if (userAddresses.isNotEmpty()) {
+                                val fallback = userAddresses[0]
+                                selectedDeliveryAddress = fallback.toFormattedString()
+                                updateSelectedAddressUI(fallback.name)
+                            } else {
+                                selectedDeliveryAddress = null
+                                updateSelectedAddressUI()
+                            }
+                        }
                     }
                 }
             }
@@ -135,47 +194,33 @@ class CartFragment : Fragment() {
         })
     }
 
-    private fun showAddAddressDialog() {
-        val input = EditText(requireContext())
-        input.hint = "City, Street, Building No"
-        AlertDialog.Builder(requireContext())
-            .setTitle("Add New Address")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                val txt = input.text.toString().trim()
-                if (txt.isNotEmpty()) saveNewAddress(txt)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun saveNewAddress(address: String) {
+    private fun saveNewAddress(item: AddressItem) {
         val uid = auth.currentUser?.uid ?: return
-        database.child("Users").child(uid).child("savedAddresses").push().setValue(address)
+        database.child("Users").child(uid).child("Addresses").push().setValue(item)
             .addOnSuccessListener {
                 Toast.makeText(context, "Address added!", Toast.LENGTH_SHORT).show()
-                fetchUserAddresses() // Refresh list
+                selectedDeliveryAddress = item.toFormattedString()
+                if (_binding != null) updateSelectedAddressUI(item.name)
+                fetchUserAddresses()
             }
     }
+
+    // ... (Keep all robust Transaction/Order logic below exactly as it was) ...
+    // The only diff is 'selectedDeliveryAddress' is now populated via toFormattedString()
 
     private fun recalculateTotals() {
         if (_binding == null) return
-
         val isDelivery = binding.radioDelivery.isChecked
         val subtotal = CartManager.getCartTotal()
-
         if (isDelivery) {
             binding.deliveryAddressSection.visibility = View.VISIBLE
             binding.deliveryFeeLayout.visibility = View.VISIBLE
-
-            // Inverse Tiered Fee
             calculatedDeliveryFee = when {
                 subtotal < THRESHOLD_SMALL -> FEE_HIGH
                 subtotal < THRESHOLD_MEDIUM -> FEE_MED
                 subtotal < THRESHOLD_LARGE -> FEE_LOW
                 else -> 0.0
             }
-
             if (calculatedDeliveryFee == 0.0) {
                 binding.deliveryFeeTextView.text = "FREE"
                 binding.deliveryFeeTextView.setTextColor(requireContext().getColor(android.R.color.holo_green_dark))
@@ -184,39 +229,26 @@ class CartFragment : Fragment() {
                 binding.deliveryFeeTextView.setTextColor(binding.totalPriceTextView.currentTextColor)
             }
         } else {
-            // Pick-up
             binding.deliveryAddressSection.visibility = View.GONE
             binding.deliveryFeeLayout.visibility = View.GONE
             calculatedDeliveryFee = 0.0
         }
-
         val finalTotal = subtotal + calculatedDeliveryFee
         binding.subtotalTextView.text = String.format(Locale.US, "$%.2f", subtotal)
         binding.totalPriceTextView.text = String.format(Locale.US, "$%.2f", finalTotal)
     }
 
     private fun setupRecyclerView() {
-        cartAdapter = CartAdapter(
-            CartManager.getCartItems(),
-            { cartItem ->
-                cartItem.product?.productId?.let { CartManager.updateQuantity(it, cartItem.quantityInCart) }
-                updateCartView()
-            },
-            { cartItem ->
-                cartItem.product?.productId?.let { CartManager.removeItem(it) }
-                updateCartView()
-            }
+        cartAdapter = CartAdapter(CartManager.getCartItems(),
+            { cartItem -> cartItem.product?.productId?.let { CartManager.updateQuantity(it, cartItem.quantityInCart) }; updateCartView() },
+            { cartItem -> cartItem.product?.productId?.let { CartManager.removeItem(it) }; updateCartView() }
         )
-        binding.cartRecyclerView.apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = cartAdapter
-        }
+        binding.cartRecyclerView.apply { layoutManager = LinearLayoutManager(context); adapter = cartAdapter }
     }
 
     private fun updateCartView() {
         val cartItems = CartManager.getCartItems()
         cartAdapter.updateItems(cartItems)
-
         if (_binding == null) return
         if (cartItems.isEmpty()) {
             binding.emptyCartView.visibility = View.VISIBLE
@@ -230,90 +262,48 @@ class CartFragment : Fragment() {
         }
     }
 
-    // ---------------------------------------------------------
-    // NEW ROBUST ORDER PROCESSING LOGIC (Two-Phase Commit)
-    // ---------------------------------------------------------
-
     private fun attemptPlaceOrder() {
         val isDelivery = binding.radioDelivery.isChecked
         if (isDelivery && selectedDeliveryAddress.isNullOrEmpty()) {
             Toast.makeText(context, "Please select a delivery address.", Toast.LENGTH_SHORT).show()
             return
         }
-
         val sellerId = CartManager.getSellerId()
         if (sellerId == null || CartManager.getCartItems().isEmpty()) {
             Toast.makeText(context, "Cart is empty", Toast.LENGTH_SHORT).show()
             return
         }
-
         binding.placeOrderButton.isEnabled = false
         Toast.makeText(context, "Processing order...", Toast.LENGTH_SHORT).show()
-
         val itemsToBuy = CartManager.getCartItems()
-        // Start the chain with the first item
         reserveNextItem(itemsToBuy, 0, mutableListOf())
     }
 
-    /**
-     * Recursively tries to reserve stock for each item.
-     * If successful, it moves to the next.
-     * If it fails, it triggers a rollback.
-     */
-    private fun reserveNextItem(
-        items: List<com.guc_proj.signaling_proj.CartItem>,
-        index: Int,
-        reservedItems: MutableList<com.guc_proj.signaling_proj.CartItem>
-    ) {
-        // BASE CASE: If we have processed all items successfully
-        if (index >= items.size) {
-            // All stock reserved! Finalize the order.
-            finalizeOrder()
-            return
-        }
-
+    private fun reserveNextItem(items: List<com.guc_proj.signaling_proj.CartItem>, index: Int, reservedItems: MutableList<com.guc_proj.signaling_proj.CartItem>) {
+        if (index >= items.size) { finalizeOrder(); return }
         val currentItem = items[index]
         val productId = currentItem.product?.productId ?: return
         val quantityNeeded = currentItem.quantityInCart
-
         val productRef = FirebaseDatabase.getInstance().getReference("Products").child(productId).child("quantity")
-
         productRef.runTransaction(object : Transaction.Handler {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
                 val stock = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
-
-                // CRITICAL CHECK: Do we have enough stock?
-                if (stock < quantityNeeded) {
-                    // Abort this specific transaction
-                    return Transaction.abort()
-                }
-
-                // Decrement stock
+                if (stock < quantityNeeded) return Transaction.abort()
                 currentData.value = stock - quantityNeeded
                 return Transaction.success(currentData)
             }
-
             override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
                 if (committed) {
-                    // Success: Add to reserved list and try the next item
                     reservedItems.add(currentItem)
                     reserveNextItem(items, index + 1, reservedItems)
                 } else {
-                    // Failure: Out of stock or race condition lost.
-                    // ROLLBACK everything we reserved so far.
                     if (_binding != null && context != null) {
                         val failedProductName = currentItem.product?.name ?: "Item"
-
-                        // --- UX IMPROVEMENT: Alert Dialog instead of Toast ---
                         AlertDialog.Builder(requireContext())
                             .setTitle("Order Failed")
-                            .setMessage("Unfortunately, '$failedProductName' is out of stock or insufficient quantity available.")
-                            .setPositiveButton("OK") { dialog, _ ->
-                                dialog.dismiss()
-                            }
-                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setMessage("Unfortunately, '$failedProductName' is out of stock.")
+                            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
                             .show()
-
                         rollbackStock(reservedItems)
                     }
                 }
@@ -321,80 +311,50 @@ class CartFragment : Fragment() {
         })
     }
 
-    /**
-     * If an order fails halfway, this restores the stock for items we previously grabbed.
-     */
     private fun rollbackStock(itemsToRestore: List<com.guc_proj.signaling_proj.CartItem>) {
         val productsRef = FirebaseDatabase.getInstance().getReference("Products")
-
         itemsToRestore.forEach { item ->
             val productId = item.product?.productId ?: return@forEach
             val quantityToRestore = item.quantityInCart
-
             productsRef.child(productId).child("quantity").runTransaction(object : Transaction.Handler {
                 override fun doTransaction(currentData: MutableData): Transaction.Result {
                     val currentQty = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
-                    // Add the stock back
                     currentData.value = currentQty + quantityToRestore
                     return Transaction.success(currentData)
                 }
-                override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
-                    // Rollback complete for this item
-                }
+                override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {}
             })
         }
-
-        // Re-enable button so user can fix cart and try again
-        if (_binding != null) {
-            binding.placeOrderButton.isEnabled = true
-        }
+        if (_binding != null) binding.placeOrderButton.isEnabled = true
     }
 
-    /**
-     * Called ONLY when all items are successfully reserved.
-     */
     private fun finalizeOrder() {
         val buyerId = auth.currentUser?.uid ?: return
         val itemsMap = CartManager.getCartItemsMap()
         val sellerId = CartManager.getSellerId()
         val finalTotal = CartManager.getCartTotal() + calculatedDeliveryFee
-
         if (sellerId == null) return
-
-        // Fetch Names and Save Order
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(buyerSnap: DataSnapshot) {
                 val buyerName = buyerSnap.getValue(User::class.java)?.name ?: "Unknown"
-
                 database.child("Users").child(sellerId).addListenerForSingleValueEvent(object : ValueEventListener {
                     override fun onDataChange(sellerSnap: DataSnapshot) {
                         val sellerName = sellerSnap.getValue(User::class.java)?.name ?: "Unknown"
-
                         val orderId = database.child("Orders").push().key ?: UUID.randomUUID().toString()
                         val order = Order(
-                            orderId = orderId,
-                            buyerId = buyerId,
-                            sellerId = sellerId,
-                            buyerName = buyerName,
-                            sellerName = sellerName,
-                            items = itemsMap,
-                            totalPrice = finalTotal,
-                            status = Order.STATUS_PENDING,
+                            orderId = orderId, buyerId = buyerId, sellerId = sellerId,
+                            buyerName = buyerName, sellerName = sellerName, items = itemsMap,
+                            totalPrice = finalTotal, status = Order.STATUS_PENDING,
                             deliveryType = if (binding.radioDelivery.isChecked) Order.TYPE_DELIVERY else Order.TYPE_PICKUP,
                             deliveryAddress = if (binding.radioDelivery.isChecked) selectedDeliveryAddress else null,
                             deliveryFee = calculatedDeliveryFee
                         )
-
                         saveOrderToFirebase(orderId, order)
                     }
-                    override fun onCancelled(e: DatabaseError) {
-                        if (_binding != null) binding.placeOrderButton.isEnabled = true
-                    }
+                    override fun onCancelled(e: DatabaseError) { if (_binding != null) binding.placeOrderButton.isEnabled = true }
                 })
             }
-            override fun onCancelled(e: DatabaseError) {
-                if (_binding != null) binding.placeOrderButton.isEnabled = true
-            }
+            override fun onCancelled(e: DatabaseError) { if (_binding != null) binding.placeOrderButton.isEnabled = true }
         })
     }
 
@@ -423,11 +383,6 @@ class CartFragment : Fragment() {
         } else {
             (activity as? BuyerHomeActivity)?.findViewById<ViewPager2>(com.guc_proj.signaling_proj.R.id.buyer_view_pager)?.currentItem = 0
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateCartView()
     }
 
     override fun onDestroyView() {

@@ -13,10 +13,12 @@ data class Order(
     val items: Map<String, CartItem>? = null,
     val totalPrice: Double? = null,
     val status: String? = STATUS_PENDING,
-    // New Fields
+    // Delivery Info
     val deliveryType: String = "Pickup",
     val deliveryAddress: String? = null,
-    val deliveryFee: Double = 0.0
+    val deliveryFee: Double = 0.0,
+    // Order Date
+    val timestamp: Long = System.currentTimeMillis()
 ) : Parcelable {
     companion object {
         const val STATUS_PENDING = "Pending"

@@ -1,11 +1,17 @@
 package com.guc_proj.signaling_proj.buyer
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.databinding.ItemOrderBuyerBinding
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class BuyerOrderAdapter(
@@ -29,44 +35,71 @@ class BuyerOrderAdapter(
         val context = holder.binding.root.context
 
         with(holder.binding) {
-            sellerNameTextView.text = order.sellerName ?: "Unknown Seller"
-            orderIdTextView.text = "ID: ${order.orderId}"
+            sellerNameTextView.text = order.sellerName ?: "Unknown Shop"
             totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice ?: 0.0)
 
-            if (order.deliveryType == Order.TYPE_DELIVERY) {
-                deliveryInfoTextView.text = String.format(Locale.US, "Delivery ($%.2f)", order.deliveryFee)
-            } else {
-                deliveryInfoTextView.text = "Pick-up"
+            // Date
+            val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+            dateTextView.text = sdf.format(Date(order.timestamp))
+
+            // Timeline / Progress
+            val (progress, statusColor) = when (order.status) {
+                Order.STATUS_PENDING -> Pair(10, context.getColor(R.color.status_orange))
+                Order.STATUS_ACCEPTED -> Pair(35, context.getColor(R.color.md_theme_primary))
+                Order.STATUS_PREPARING -> Pair(60, context.getColor(R.color.md_theme_primary))
+                Order.STATUS_OUT_FOR_DELIVERY -> Pair(85, context.getColor(R.color.md_theme_primary))
+                Order.STATUS_DELIVERED -> Pair(100, context.getColor(R.color.status_green))
+                Order.STATUS_REJECTED -> Pair(0, context.getColor(R.color.md_theme_error))
+                else -> Pair(0, context.getColor(R.color.md_theme_outline))
             }
 
             statusTextView.text = order.status
+            statusTextView.setTextColor(statusColor)
 
-            when (order.status) {
-                Order.STATUS_PENDING -> {
-                    statusTextView.setTextColor(context.getColor(R.color.status_orange))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
-                }
-                Order.STATUS_REJECTED -> {
-                    statusTextView.setTextColor(context.getColor(R.color.md_theme_error))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
-                }
-                Order.STATUS_DELIVERED -> {
-                    statusTextView.setTextColor(context.getColor(R.color.status_green))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
-                }
-                else -> {
-                    statusTextView.setTextColor(context.getColor(R.color.md_theme_primary))
-                    statusTextView.setBackgroundResource(R.drawable.bg_role_badge)
-                }
+            orderProgressBar.progress = progress
+            if (order.status == Order.STATUS_REJECTED) {
+                orderProgressBar.setIndicatorColor(context.getColor(R.color.md_theme_error))
+            } else {
+                orderProgressBar.setIndicatorColor(context.getColor(R.color.md_theme_primary))
             }
 
-            val itemsSummary = order.items?.values?.mapNotNull { cartItem ->
-                cartItem.product?.let { product ->
-                    "${product.name ?: "Unknown Item"} x ${cartItem.quantityInCart}"
-                }
-            }?.joinToString(", ") ?: "No items"
+            // Delivery Info
+            if (order.deliveryType == Order.TYPE_DELIVERY) {
+                deliveryInfoTextView.text = String.format(Locale.US, "Delivery ($%.2f)", order.deliveryFee)
+                addressTextView.visibility = View.VISIBLE
+                addressTextView.text = order.deliveryAddress ?: "Address info unavailable"
+            } else {
+                deliveryInfoTextView.text = "Pick-up (Free)"
+                addressTextView.visibility = View.GONE
+            }
 
-            itemsSummaryTextView.text = itemsSummary
+            // Dynamic Items
+            itemsContainer.removeAllViews()
+            order.items?.values?.forEach { cartItem ->
+                val product = cartItem.product
+                if (product != null) {
+                    val itemView = LayoutInflater.from(context).inflate(R.layout.view_order_item_row, itemsContainer, false)
+
+                    val thumb = itemView.findViewById<ImageView>(R.id.itemThumb)
+                    val qty = itemView.findViewById<TextView>(R.id.itemQty)
+                    val name = itemView.findViewById<TextView>(R.id.itemName)
+                    val price = itemView.findViewById<TextView>(R.id.itemPrice)
+
+                    name.text = product.name
+                    qty.text = "${cartItem.quantityInCart}x"
+
+                    val itemTotal = (product.price ?: 0.0) * cartItem.quantityInCart
+                    price.text = String.format(Locale.US, "$%.2f", itemTotal)
+
+                    Glide.with(context)
+                        .load(product.photoUrl)
+                        .placeholder(R.drawable.ic_launcher_foreground)
+                        .centerCrop()
+                        .into(thumb)
+
+                    itemsContainer.addView(itemView)
+                }
+            }
         }
     }
 

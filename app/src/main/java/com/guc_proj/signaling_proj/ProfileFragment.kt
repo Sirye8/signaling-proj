@@ -63,7 +63,7 @@ class ProfileFragment : Fragment() {
         val firebaseUser = auth.currentUser
 
         if (firebaseUser == null) {
-            logoutUser() // User shouldn't be here
+            logoutUser()
             return
         }
 
@@ -76,6 +76,10 @@ class ProfileFragment : Fragment() {
 
         binding.selectPhotoButton.setOnClickListener {
             pickImageLauncher.launch("image/*")
+        }
+
+        binding.manageAddressesButton.setOnClickListener {
+            startActivity(Intent(requireContext(), AddressesActivity::class.java))
         }
 
         binding.saveChangesButton.setOnClickListener {
@@ -97,7 +101,7 @@ class ProfileFragment : Fragment() {
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             selectedImageUri = uri
-            if (_binding == null) return@registerForActivityResult // View destroyed
+            if (_binding == null) return@registerForActivityResult
             Glide.with(this).load(uri).into(binding.profileImageView)
             Toast.makeText(context, "Photo selected. Press 'Save Changes' to upload.", Toast.LENGTH_LONG).show()
         }
@@ -212,8 +216,8 @@ class ProfileFragment : Fragment() {
     private fun fetchUserData() {
         userValueListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (_binding == null) return // View destroyed, do nothing
-                currentUser = snapshot.getValue(User::class.java) // <-- STORE USER
+                if (_binding == null) return
+                currentUser = snapshot.getValue(User::class.java)
                 currentUser?.let {
                     if (it.role == "Seller") {
                         binding.nameTextInputLayout.hint = "Shop Name"
@@ -223,7 +227,9 @@ class ProfileFragment : Fragment() {
 
                     binding.nameEditText.setText(it.name)
                     binding.phoneEditText.setText(it.phone)
-                    binding.addressEditText.setText(it.address)
+
+                    // Address handling removed from here since it's in a separate activity
+
                     if (!it.photoUrl.isNullOrEmpty() && context != null) {
                         Glide.with(this@ProfileFragment)
                             .load(it.photoUrl)
@@ -247,13 +253,13 @@ class ProfileFragment : Fragment() {
     private fun updateUserData() {
         val name = binding.nameEditText.text.toString().trim()
         val phone = binding.phoneEditText.text.toString().trim()
-        val address = binding.addressEditText.text.toString().trim()
+
         val userUpdates = mapOf<String, Any>(
-            "name" to name, "phone" to phone, "address" to address
+            "name" to name, "phone" to phone
         )
         database.updateChildren(userUpdates).addOnCompleteListener { task ->
             if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
-                return@addOnCompleteListener // View destroyed or finishing
+                return@addOnCompleteListener
             }
             if (task.isSuccessful && selectedImageUri == null) {
                 Toast.makeText(context?.applicationContext, "Profile updated successfully!", Toast.LENGTH_SHORT).show()
@@ -293,24 +299,18 @@ class ProfileFragment : Fragment() {
             return
         }
 
-        // Check if the user is a seller
         if (currentUser?.role == "Seller") {
-            // Start the seller data deletion chain
             Toast.makeText(context, "Deleting seller products...", Toast.LENGTH_SHORT).show()
             deleteAllSellerProducts {
-                // This is the callback, executed after products are deleted
                 Log.d("Delete", "Seller products deleted. Deleting user profile...")
-                // Now delete the user's profile folder and DB entry
                 deleteUserDbAndAuth()
             }
         } else {
-            // User is a Buyer, just delete their profile
             Log.d("Delete", "User is a Buyer. Deleting user profile...")
             deleteUserDbAndAuth()
         }
     }
 
-    // Finds and deletes all products and S3 images for the current seller.
     private fun deleteAllSellerProducts(onComplete: () -> Unit) {
         val productsRef = FirebaseDatabase.getInstance().getReference("Products")
         val sellerId = currentUserUid ?: return
@@ -321,7 +321,6 @@ class ProfileFragment : Fragment() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (_binding == null) return
                 if (!snapshot.exists()) {
-                    Log.d("Delete", "Seller has no products to delete.")
                     onComplete()
                     return
                 }
@@ -329,22 +328,14 @@ class ProfileFragment : Fragment() {
                 val productCount = snapshot.childrenCount
                 var deletedCount = 0
 
-                Log.d("Delete", "Found $productCount products to delete.")
-
                 for (productSnapshot in snapshot.children) {
                     val product = productSnapshot.getValue(Product::class.java)
-
-                    // 1. Delete S3 image
                     product?.photoUrl?.let {
                         deleteProductImageFromS3(it)
                     }
-
-                    // 2. Delete product from DB
                     productSnapshot.ref.removeValue().addOnCompleteListener {
                         deletedCount++
-                        // When the last product is deleted, call the callback
                         if (deletedCount.toLong() == productCount) {
-                            Log.d("Delete", "Finished deleting all products from DB.")
                             onComplete()
                         }
                     }
@@ -360,21 +351,17 @@ class ProfileFragment : Fragment() {
         })
     }
 
-    // Deletes the user's S3 profile photo folder, their "Users" entry, and their Auth account.
     private fun deleteUserDbAndAuth() {
         val user = auth.currentUser ?: return
         val appCtx = context?.applicationContext
 
-        // 1. Delete S3 profile photo folder
         deleteS3ProfileFolder()
 
-        // 2. Delete "Users" DB entry
         database.removeValue().addOnCompleteListener { dbTask ->
             if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
                 return@addOnCompleteListener
             }
             if (dbTask.isSuccessful) {
-                // 3. Delete Auth user
                 user.delete().addOnCompleteListener { authTask ->
                     if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
                         return@addOnCompleteListener
@@ -392,7 +379,6 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    // Deletes a specific product image file from S3.
     private fun deleteProductImageFromS3(photoUrl: String) {
         if (!::s3Client.isInitialized) {
             Log.e("ProfileFragment_S3", "S3 client not init or photoUrl is null.")
@@ -400,9 +386,9 @@ class ProfileFragment : Fragment() {
         }
 
         try {
-            val objectKey = URL(photoUrl).path.substring(1) // remove leading '/'
+            val objectKey = URL(photoUrl).path.substring(1)
             if (objectKey.isNotBlank()) {
-                thread { // Run on a background thread
+                thread {
                     try {
                         s3Client.deleteObject(S3_BUCKET_NAME, objectKey)
                         Log.d("ProfileFragment_S3", "Deleted product image $objectKey from S3")
@@ -416,22 +402,14 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    // Deletes the entire S3 folder for the user's profile photos.
     private fun deleteS3ProfileFolder() {
-        if (!::s3Client.isInitialized) {
-            Log.e("ProfileFragment_S3", "S3 client not initialized, skipping deletion.")
-            return
-        }
-        if (currentUserUid.isNullOrEmpty()) {
-            Log.e("ProfileFragment_S3", "User UID is null, cannot delete folder.")
-            return
-        }
+        if (!::s3Client.isInitialized) return
+        if (currentUserUid.isNullOrEmpty()) return
 
         val folderKey = "profile-photos/$currentUserUid/"
 
-        thread { // Run on a background thread
+        thread {
             try {
-                Log.d("ProfileFragment_S3", "Listing objects for deletion in prefix: $folderKey")
                 val listRequest = ListObjectsRequest()
                     .withBucketName(S3_BUCKET_NAME)
                     .withPrefix(folderKey)
@@ -440,22 +418,14 @@ class ProfileFragment : Fragment() {
 
                 while (true) {
                     for (summary in objectListing.objectSummaries) {
-                        Log.d("ProfileFragment_S3", "Deleting object: ${summary.key}")
                         s3Client.deleteObject(S3_BUCKET_NAME, summary.key)
                     }
-
                     if (objectListing.isTruncated) {
                         objectListing = s3Client.listNextBatchOfObjects(objectListing)
                     } else {
                         break
                     }
                 }
-                Log.d("ProfileFragment_S3", "Successfully deleted folder contents for $folderKey")
-
-            } catch (e: AmazonServiceException) {
-                Log.e("ProfileFragment_S3", "S3 Service Error deleting folder: ${e.errorMessage}", e)
-            } catch (e: AmazonClientException) {
-                Log.e("ProfileFragment_S3", "S3 Client Error deleting folder: ${e.message}", e)
             } catch (e: Exception) {
                 Log.e("ProfileFragment_S3", "Generic error deleting S3 folder: ${e.message}", e)
             }
