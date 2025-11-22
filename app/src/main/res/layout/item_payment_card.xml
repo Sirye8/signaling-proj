@@ -17,7 +17,7 @@
         <ImageView
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/baseline_account_box_24"
+            android:src="@drawable/baseline_account_balance_wallet_24"
             app:tint="?attr/colorPrimary"/>
 
         <LinearLayout
@@ -45,10 +45,21 @@
         </LinearLayout>
 
         <ImageButton
+            android:id="@+id/editCardButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_edit"
+            android:tooltipText="Edit"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="?attr/colorPrimary"
+            android:layout_marginEnd="8dp"/>
+
+        <ImageButton
             android:id="@+id/deleteCardButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:src="@drawable/ic_delete"
+            android:tooltipText="Delete"
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="?attr/colorError"/>
 

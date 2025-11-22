@@ -64,20 +64,43 @@
             android:textColor="?attr/colorOnSurfaceVariant"/>
 
         <TextView
-            android:id="@+id/addressTextView"
+            android:id="@+id/buyerNameTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            tools:text="John Doe"
+            android:textStyle="bold"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textColor="?attr/colorOnSurface"/>
+
+        <TextView
+            android:id="@+id/addressTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
             tools:text="123 Main Street, Apt 4B, Cairo"
             android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
             android:textColor="?attr/colorOnSurface"/>
+
+        <TextView
+            android:id="@+id/paymentStatusTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:paddingVertical="12dp"
+            android:paddingHorizontal="16dp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:visibility="gone"
+            tools:background="@drawable/bg_status_rounded"
+            tools:backgroundTint="?attr/colorErrorContainer"
+            tools:text="Collect Cash: $25.50" />
 
         <com.google.android.material.divider.MaterialDivider
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginVertical="12dp"/>
 
-        <!-- Action Buttons -->
         <Button
             android:id="@+id/actionButton"
             style="@style/Widget.Material3.Button"

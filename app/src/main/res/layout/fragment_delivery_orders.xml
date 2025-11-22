@@ -8,21 +8,9 @@
     android:background="?android:attr/colorBackground"
     android:fitsSystemWindows="true">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorSurface">
-        <com.google.android.material.appbar.MaterialToolbar
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="Available Deliveries"
-            app:titleCentered="true"/>
-    </com.google.android.material.appbar.AppBarLayout>
-
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="match_parent">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -30,7 +18,6 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Active Jobs -->
             <TextView
                 android:id="@+id/myJobsTitle"
                 android:layout_width="wrap_content"

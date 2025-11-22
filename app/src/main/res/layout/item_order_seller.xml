@@ -85,6 +85,19 @@
                 android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                 android:textStyle="bold"
                 tools:text="Pending" />
+
+            <TextView
+                android:id="@+id/paymentInfoTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_role_badge"
+                android:backgroundTint="?attr/colorSurfaceContainerHigh"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                android:textColor="?attr/colorOnSurface"
+                tools:text="Cash" />
         </LinearLayout>
 
         <TextView

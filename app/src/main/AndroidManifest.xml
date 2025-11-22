@@ -67,6 +67,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".CardFormActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".AddressFormActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

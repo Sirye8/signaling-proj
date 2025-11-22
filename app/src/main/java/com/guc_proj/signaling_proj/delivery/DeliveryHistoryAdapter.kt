@@ -31,14 +31,15 @@ class DeliveryHistoryAdapter(
         with(holder.binding) {
             shopNameTextView.text = order.sellerName ?: "Unknown Shop"
 
-            // Format Date
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
             dateTextView.text = sdf.format(Date(order.timestamp))
 
-            // Format Fee
             feeTextView.text = String.format(Locale.US, "+$%.2f", order.deliveryFee)
 
+            buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
             addressTextView.text = order.deliveryAddress ?: "No address"
+
+            paymentInfoTextView.text = "Payment: ${order.paymentMethod}"
         }
     }
 

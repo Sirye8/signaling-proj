@@ -36,14 +36,15 @@ class BuyerOrderAdapter(
 
         with(holder.binding) {
             sellerNameTextView.text = order.sellerName ?: "Unknown Shop"
-            totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice ?: 0.0)
+            // Use finalPrice if available, otherwise fallback to totalPrice
+            val displayPrice = order.finalPrice
+            totalPriceTextView.text = String.format(Locale.US, "$%.2f", displayPrice)
 
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
             dateTextView.text = sdf.format(Date(order.timestamp))
 
-            // Logic for Status Text
+            // Status Logic
             var displayStatus = order.status
-
             if (order.deliveryType == Order.TYPE_DELIVERY && order.status == Order.STATUS_READY_FOR_PICKUP) {
                 displayStatus = "Preparing"
             }
@@ -53,15 +54,13 @@ class BuyerOrderAdapter(
                 Order.STATUS_PENDING -> Pair(10, context.getColor(R.color.status_orange))
                 Order.STATUS_ACCEPTED -> Pair(35, context.getColor(R.color.md_theme_primary))
                 Order.STATUS_PREPARING -> Pair(50, context.getColor(R.color.md_theme_primary))
-
                 Order.STATUS_READY_FOR_PICKUP -> {
                     if (order.deliveryType == Order.TYPE_PICKUP) {
-                        Pair(85, context.getColor(R.color.status_green)) // Ready for you to pick up
+                        Pair(85, context.getColor(R.color.status_green))
                     } else {
-                        Pair(60, context.getColor(R.color.md_theme_primary)) // Still in "Preparing" phase for buyer
+                        Pair(60, context.getColor(R.color.md_theme_primary))
                     }
                 }
-
                 Order.STATUS_OUT_FOR_DELIVERY -> Pair(80, context.getColor(R.color.md_theme_primary))
                 Order.STATUS_DELIVERED, Order.STATUS_COMPLETED -> Pair(100, context.getColor(R.color.status_green))
                 Order.STATUS_REJECTED -> Pair(0, context.getColor(R.color.md_theme_error))
@@ -85,6 +84,15 @@ class BuyerOrderAdapter(
             } else {
                 deliveryInfoTextView.text = "Pick-up (Free)"
                 addressTextView.visibility = View.GONE
+            }
+
+            // Payment & Discount Info
+            paymentMethodTextView.text = "Method: ${order.paymentMethod}"
+            if (order.discountApplied > 0) {
+                discountTextView.visibility = View.VISIBLE
+                discountTextView.text = String.format(Locale.US, "Discount: -$%.2f", order.discountApplied)
+            } else {
+                discountTextView.visibility = View.GONE
             }
 
             itemsContainer.removeAllViews()

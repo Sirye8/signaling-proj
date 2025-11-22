@@ -1,7 +1,10 @@
 package com.guc_proj.signaling_proj.delivery
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.R
@@ -33,7 +36,24 @@ class DeliveryOrderAdapter(
             shopNameTextView.text = order.sellerName
             orderIdTextView.text = "Order ID: ...${order.orderId?.takeLast(6)}"
             feeTextView.text = String.format(Locale.US, "Earn $%.2f", order.deliveryFee)
+
+            buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
             addressTextView.text = order.deliveryAddress
+
+            // Apply rounded background shape
+            paymentStatusTextView.background = ContextCompat.getDrawable(context, R.drawable.bg_status_rounded)
+
+            if (order.paymentMethod == Order.PAY_CASH) {
+                paymentStatusTextView.visibility = View.VISIBLE
+                paymentStatusTextView.text = String.format(Locale.US, "Collect Cash: $%.2f", order.finalPrice)
+                paymentStatusTextView.backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.md_theme_errorContainer))
+                paymentStatusTextView.setTextColor(context.getColor(R.color.md_theme_onErrorContainer))
+            } else {
+                paymentStatusTextView.visibility = View.VISIBLE
+                paymentStatusTextView.text = "Paid Online (Do Not Collect)"
+                paymentStatusTextView.backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.md_theme_primaryContainer))
+                paymentStatusTextView.setTextColor(context.getColor(R.color.md_theme_onPrimaryContainer))
+            }
 
             if (order.status == Order.STATUS_READY_FOR_PICKUP) {
                 actionButton.text = "Pick Up Order"

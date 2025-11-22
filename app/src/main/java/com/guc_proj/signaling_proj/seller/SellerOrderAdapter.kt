@@ -37,6 +37,8 @@ class SellerOrderAdapter(
 
         with(holder.binding) {
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
+            // Sellers usually see the Total Price of items, disregarding buyer's personal credit discount
+            // But let's show final price if that's what determines cash collection
             totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
 
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
@@ -44,14 +46,11 @@ class SellerOrderAdapter(
 
             // Status Text Logic
             var displayStatus = order.status
-
-            // CUSTOM: Show "Waiting for Driver" specifically to Seller
             if (order.deliveryType == Order.TYPE_DELIVERY && order.status == Order.STATUS_READY_FOR_PICKUP) {
                 displayStatus = "Waiting for Driver"
             }
 
             statusTextView.text = displayStatus
-
             val statusColor = when (order.status) {
                 Order.STATUS_PENDING -> context.getColor(R.color.status_orange)
                 Order.STATUS_REJECTED -> context.getColor(R.color.md_theme_error)
@@ -67,6 +66,9 @@ class SellerOrderAdapter(
             } else {
                 deliveryAddressTextView.visibility = View.GONE
             }
+
+            // Payment Info
+            paymentInfoTextView.text = order.paymentMethod
 
             itemsContainer.removeAllViews()
             order.items?.values?.forEach { cartItem ->
@@ -93,7 +95,6 @@ class SellerOrderAdapter(
                 }
             }
 
-            // Logic for buttons based on status AND delivery type
             pendingActionsLayout.visibility = View.GONE
             acceptedActionsScrollView.visibility = View.GONE
 
@@ -110,14 +111,11 @@ class SellerOrderAdapter(
                 Order.STATUS_PREPARING -> {
                     acceptedActionsScrollView.visibility = View.VISIBLE
                     setPreparingButton.visibility = View.GONE
-                    // Both types go to "Ready for Pickup" next
                     setOutForDeliveryButton.visibility = View.VISIBLE
                     setOutForDeliveryButton.text = "Ready for Pickup"
                     setDeliveredButton.visibility = View.GONE
                 }
                 Order.STATUS_READY_FOR_PICKUP -> {
-                    // If it's Delivery, Seller waits for Driver (No buttons)
-                    // If it's Pickup, Seller marks Completed
                     if (order.deliveryType == Order.TYPE_PICKUP) {
                         acceptedActionsScrollView.visibility = View.VISIBLE
                         setPreparingButton.visibility = View.GONE
@@ -125,11 +123,9 @@ class SellerOrderAdapter(
                         setDeliveredButton.visibility = View.VISIBLE
                         setDeliveredButton.text = "Mark Picked Up"
                     } else {
-                        // Delivery: Show status but no actions
                         acceptedActionsScrollView.visibility = View.GONE
                     }
                 }
-                // For other states (Rejected, Delivered, Out for Delivery), no actions for seller
             }
 
             acceptButton.setOnClickListener { onActionClick(order, Order.STATUS_ACCEPTED) }

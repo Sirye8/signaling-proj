@@ -18,6 +18,7 @@ import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.AddressFormActivity
 import com.guc_proj.signaling_proj.AddressItem
 import com.guc_proj.signaling_proj.BuyerHomeActivity
+import com.guc_proj.signaling_proj.CardFormActivity
 import com.guc_proj.signaling_proj.CartItem
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.PaymentCard
@@ -39,14 +40,15 @@ class CartFragment : Fragment() {
 
     // --- Address Variables ---
     private val userAddresses = mutableListOf<AddressItem>()
-    private var selectedDeliveryAddress: String? = null // Holds the formatted string for the Order
+    private var selectedDeliveryAddress: String? = null
 
+    // --- Card Variables ---
     private val userCards = mutableListOf<PaymentCard>()
     private var selectedCard: PaymentCard? = null
+
     private var availableCredit: Double = 0.0
     private var calculatedDeliveryFee: Double = 0.0
 
-    // --- Constants ---
     private val FEE_HIGH = 15.0
     private val FEE_MED = 10.0
     private val FEE_LOW = 5.0
@@ -54,6 +56,7 @@ class CartFragment : Fragment() {
     private val THRESHOLD_MEDIUM = 70.0
     private val THRESHOLD_LARGE = 150.0
 
+    // Address Result
     private val addressResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val data = result.data
@@ -72,10 +75,23 @@ class CartFragment : Fragment() {
         }
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    // Card Result
+    private val cardResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            if (data != null) {
+                val number = data.getStringExtra("EXTRA_NUMBER") ?: ""
+                val holder = data.getStringExtra("EXTRA_HOLDER") ?: ""
+                val expiry = data.getStringExtra("EXTRA_EXPIRY") ?: ""
+                val masked = if (number.length >= 4) "**** **** **** ${number.takeLast(4)}" else number
+
+                val newCard = PaymentCard(null, masked, holder, expiry)
+                saveNewCard(newCard)
+            }
+        }
+    }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentCartBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -86,25 +102,20 @@ class CartFragment : Fragment() {
 
         setupRecyclerView()
         setupAddressSelector()
-        setupPaymentMethodSelector()
+        setupCardSelector()
 
-        // Listeners
         binding.deliveryRadioGroup.setOnCheckedChangeListener { _, _ -> recalculateTotals() }
 
-        // Payment Method Toggle (Card vs Cash)
         binding.paymentMethodGroup.setOnCheckedChangeListener { _, checkedId ->
-            binding.cardSelectionLayout.visibility = if(checkedId == R.id.radioCard) View.VISIBLE else View.GONE
+            binding.cardSection.visibility = if(checkedId == R.id.radioCard) View.VISIBLE else View.GONE
         }
 
-        // Credit Switch Listener
         binding.useCreditSwitch.setOnCheckedChangeListener { _, _ -> recalculateTotals() }
 
-        // Buttons
         binding.addMoreItemsButton.setOnClickListener { navigateToAddMoreItems() }
         binding.placeOrderButton.setOnClickListener { attemptPlaceOrder() }
         binding.clearCartButton.setOnClickListener { CartManager.clearCart(); updateCartView() }
 
-        // Initial Fetches
         updateCartView()
         fetchUserAddresses()
         fetchUserFinancials()
@@ -114,14 +125,13 @@ class CartFragment : Fragment() {
         super.onResume()
         updateCartView()
         fetchUserAddresses()
+        // Re-fetch cards in case edited in PayActivity
+        fetchUserFinancials()
     }
-
-    // --- Financial/Payment Logic ---
 
     private fun fetchUserFinancials() {
         val uid = auth.currentUser?.uid ?: return
 
-        // Listen for Credit
         database.child("Users").child(uid).child("credit").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 availableCredit = snapshot.getValue(Double::class.java) ?: 0.0
@@ -134,26 +144,22 @@ class CartFragment : Fragment() {
             override fun onCancelled(error: DatabaseError) {}
         })
 
-        // Listen for Cards
         database.child("Users").child(uid).child("Cards").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 userCards.clear()
                 for (child in snapshot.children) {
                     val card = child.getValue(PaymentCard::class.java)
-                    if (card != null) {
-                        userCards.add(card)
-                    }
+                    if (card != null) userCards.add(card)
                 }
                 if (_binding != null) {
                     if (userCards.isNotEmpty()) {
-                        // Default to first card if none selected or valid
-                        if (selectedCard == null || !userCards.contains(selectedCard)) {
+                        if (selectedCard == null || !userCards.any { it.cardId == selectedCard?.cardId }) {
                             selectedCard = userCards[0]
                         }
-                        binding.selectedCardText.text = "${selectedCard?.cardNumber} (${selectedCard?.cardHolder})"
+                        updateSelectedCardUI()
                     } else {
                         selectedCard = null
-                        binding.selectedCardText.text = "No cards saved"
+                        updateSelectedCardUI()
                     }
                 }
             }
@@ -161,18 +167,72 @@ class CartFragment : Fragment() {
         })
     }
 
-    private fun setupPaymentMethodSelector() {
-        binding.cardSelectionLayout.setOnClickListener {
-            if (userCards.isEmpty()) {
-                Toast.makeText(context, "Please add a card in the Pay tab first", Toast.LENGTH_LONG).show()
-                return@setOnClickListener
-            }
-            // Simple cycle through cards
-            val currentIndex = userCards.indexOf(selectedCard)
-            val nextIndex = (currentIndex + 1) % userCards.size
-            selectedCard = userCards[nextIndex]
-            binding.selectedCardText.text = "${selectedCard?.cardNumber} (${selectedCard?.cardHolder})"
+    private fun setupCardSelector() {
+        binding.cardSelectorCard.setOnClickListener { showCardBottomSheet() }
+    }
+
+    private fun updateSelectedCardUI() {
+        if (selectedCard != null) {
+            binding.selectedCardLabel.text = selectedCard?.cardNumber
+            binding.selectedCardDetail.text = selectedCard?.cardHolder
+        } else {
+            binding.selectedCardLabel.text = "Select Card"
+            binding.selectedCardDetail.text = "Tap to choose..."
         }
+    }
+
+    private fun showCardBottomSheet() {
+        val dialog = BottomSheetDialog(requireContext())
+        val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_cards, null)
+        val recyclerView = view.findViewById<RecyclerView>(R.id.sheetCardsRecycler)
+        val addButton = view.findViewById<Button>(R.id.sheetAddCardButton)
+
+        recyclerView.layoutManager = LinearLayoutManager(context)
+        // Reuse the updated item_payment_card layout, but hide Edit/Delete buttons for selection mode
+        recyclerView.adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+                val v = LayoutInflater.from(parent.context).inflate(R.layout.item_payment_card, parent, false)
+                return object : RecyclerView.ViewHolder(v) {}
+            }
+            override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+                val item = userCards[position]
+                holder.itemView.findViewById<TextView>(R.id.cardNumberText).text = item.cardNumber
+                holder.itemView.findViewById<TextView>(R.id.cardHolderText).text = item.cardHolder
+
+                // Hide edit/delete for selection list
+                holder.itemView.findViewById<View>(R.id.editCardButton).visibility = View.GONE
+                holder.itemView.findViewById<View>(R.id.deleteCardButton).visibility = View.GONE
+
+                holder.itemView.setOnClickListener {
+                    selectedCard = item
+                    updateSelectedCardUI()
+                    dialog.dismiss()
+                }
+            }
+            override fun getItemCount() = userCards.size
+        }
+
+        addButton.setOnClickListener {
+            dialog.dismiss()
+            val intent = Intent(requireContext(), CardFormActivity::class.java)
+            cardResultLauncher.launch(intent)
+        }
+
+        dialog.setContentView(view)
+        dialog.show()
+    }
+
+    private fun saveNewCard(card: PaymentCard) {
+        val uid = auth.currentUser?.uid ?: return
+        val key = database.child("Users").child(uid).child("Cards").push().key ?: return
+        val cardWithId = card.copy(cardId = key)
+
+        database.child("Users").child(uid).child("Cards").child(key).setValue(cardWithId)
+            .addOnSuccessListener {
+                Toast.makeText(context, "Card added!", Toast.LENGTH_SHORT).show()
+                selectedCard = cardWithId
+                if (_binding != null) updateSelectedCardUI()
+            }
     }
 
     private fun setupAddressSelector() {
@@ -182,33 +242,27 @@ class CartFragment : Fragment() {
     private fun showAddressBottomSheet() {
         val dialog = BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.layout_bottom_sheet_addresses, null)
-
         val recyclerView = view.findViewById<RecyclerView>(R.id.sheetAddressRecycler)
         val addButton = view.findViewById<Button>(R.id.sheetAddAddressButton)
 
         recyclerView.layoutManager = LinearLayoutManager(context)
-
         recyclerView.adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
                 val v = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_2, parent, false)
                 return object : RecyclerView.ViewHolder(v) {}
             }
-
             override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
                 val item = userAddresses[position]
                 val text1 = holder.itemView.findViewById<TextView>(android.R.id.text1)
                 val text2 = holder.itemView.findViewById<TextView>(android.R.id.text2)
-
                 text1.text = item.name
                 text2.text = item.toFormattedString()
-
                 holder.itemView.setOnClickListener {
                     selectedDeliveryAddress = item.toFormattedString()
                     updateSelectedAddressUI(item.name)
                     dialog.dismiss()
                 }
             }
-
             override fun getItemCount() = userAddresses.size
         }
 
@@ -234,37 +288,18 @@ class CartFragment : Fragment() {
 
     private fun fetchUserAddresses() {
         val uid = auth.currentUser?.uid ?: return
-
         database.child("Users").child(uid).child("Addresses").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 userAddresses.clear()
                 for (child in snapshot.children) {
                     val item = child.getValue(AddressItem::class.java)
-                    if (item != null) {
-                        userAddresses.add(item)
-                    }
+                    if (item != null) userAddresses.add(item)
                 }
-
                 if (_binding != null) {
                     if (userAddresses.isNotEmpty() && selectedDeliveryAddress == null) {
-                        // Default to first
                         val default = userAddresses[0]
                         selectedDeliveryAddress = default.toFormattedString()
                         updateSelectedAddressUI(default.name)
-                    }
-                    // Validation logic from original code
-                    if (selectedDeliveryAddress != null) {
-                        val exists = userAddresses.any { it.toFormattedString() == selectedDeliveryAddress }
-                        if (!exists) {
-                            if (userAddresses.isNotEmpty()) {
-                                val fallback = userAddresses[0]
-                                selectedDeliveryAddress = fallback.toFormattedString()
-                                updateSelectedAddressUI(fallback.name)
-                            } else {
-                                selectedDeliveryAddress = null
-                                updateSelectedAddressUI()
-                            }
-                        }
                     }
                 }
             }
@@ -283,14 +318,11 @@ class CartFragment : Fragment() {
             }
     }
 
-    // --- Calculation Logic  ---
-
     private fun recalculateTotals() {
         if (_binding == null) return
         val subtotal = CartManager.getCartTotal()
         val isDelivery = binding.radioDelivery.isChecked
 
-        // 1. Calculate Delivery Fee
         if (isDelivery) {
             binding.deliveryAddressSection.visibility = View.VISIBLE
             binding.deliveryFeeLayout.visibility = View.VISIBLE
@@ -314,8 +346,6 @@ class CartFragment : Fragment() {
         }
 
         val totalBeforeDiscount = subtotal + calculatedDeliveryFee
-
-        // 2. Calculate Credit Discount (New Logic)
         var discount = 0.0
         if (binding.useCreditSwitch.isChecked) {
             discount = min(totalBeforeDiscount, availableCredit)
@@ -326,8 +356,6 @@ class CartFragment : Fragment() {
         }
 
         val finalTotal = totalBeforeDiscount - discount
-
-        // 3. Update UI
         binding.subtotalTextView.text = String.format(Locale.US, "$%.2f", subtotal)
         binding.totalPriceTextView.text = String.format(Locale.US, "$%.2f", finalTotal)
     }
@@ -356,23 +384,15 @@ class CartFragment : Fragment() {
         }
     }
 
-    // --- Order Placement Logic ---
-
     private fun attemptPlaceOrder() {
-        // Validation: Address
-        val isDelivery = binding.radioDelivery.isChecked
-        if (isDelivery && selectedDeliveryAddress.isNullOrEmpty()) {
+        if (binding.radioDelivery.isChecked && selectedDeliveryAddress.isNullOrEmpty()) {
             Toast.makeText(context, "Please select a delivery address.", Toast.LENGTH_SHORT).show()
             return
         }
-
-        // Validation: Card
-        val isCard = binding.radioCard.isChecked
-        if (isCard && selectedCard == null) {
-            Toast.makeText(context, "Please add/select a card in the Pay tab.", Toast.LENGTH_SHORT).show()
+        if (binding.radioCard.isChecked && selectedCard == null) {
+            Toast.makeText(context, "Please select a payment card.", Toast.LENGTH_SHORT).show()
             return
         }
-
         val sellerId = CartManager.getSellerId()
         if (sellerId == null || CartManager.getCartItems().isEmpty()) {
             Toast.makeText(context, "Cart is empty", Toast.LENGTH_SHORT).show()
@@ -381,15 +401,12 @@ class CartFragment : Fragment() {
 
         binding.placeOrderButton.isEnabled = false
         Toast.makeText(context, "Processing order...", Toast.LENGTH_SHORT).show()
-
-        // Start Sequence: Reserve -> Process Payment -> Finalize
         val itemsToBuy = CartManager.getCartItems()
         reserveNextItem(itemsToBuy, 0, mutableListOf())
     }
 
     private fun reserveNextItem(items: List<CartItem>, index: Int, reservedItems: MutableList<CartItem>) {
         if (index >= items.size) {
-            // Stock reserved, move to next step: Payment/Credit processing
             processCreditDeductionAndFinalize()
             return
         }
@@ -410,12 +427,7 @@ class CartFragment : Fragment() {
                     reserveNextItem(items, index + 1, reservedItems)
                 } else {
                     if (_binding != null && context != null) {
-                        val failedProductName = currentItem.product?.name ?: "Item"
-                        AlertDialog.Builder(requireContext())
-                            .setTitle("Order Failed")
-                            .setMessage("Unfortunately, '$failedProductName' is out of stock.")
-                            .setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
-                            .show()
+                        Toast.makeText(context, "Item out of stock: ${currentItem.product?.name}", Toast.LENGTH_LONG).show()
                         rollbackStock(reservedItems)
                     }
                 }
@@ -440,7 +452,6 @@ class CartFragment : Fragment() {
         if (_binding != null) binding.placeOrderButton.isEnabled = true
     }
 
-    // --- Process Credit Deduction ---
     private fun processCreditDeductionAndFinalize() {
         val subtotal = CartManager.getCartTotal()
         val totalBeforeDiscount = subtotal + calculatedDeliveryFee
@@ -448,30 +459,24 @@ class CartFragment : Fragment() {
 
         if (discount > 0) {
             val uid = auth.currentUser?.uid ?: return
-            val creditRef = database.child("Users").child(uid).child("credit")
-
-            creditRef.runTransaction(object : Transaction.Handler {
+            database.child("Users").child(uid).child("credit").runTransaction(object : Transaction.Handler {
                 override fun doTransaction(currentData: MutableData): Transaction.Result {
                     val currentCredit = currentData.getValue(Double::class.java) ?: 0.0
-                    // Although UI limits discount, DB transaction ensures consistency
                     if (currentCredit < discount) return Transaction.abort()
                     currentData.value = currentCredit - discount
                     return Transaction.success(currentData)
                 }
                 override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
-                    if (committed) {
-                        finalizeOrder(discount)
-                    } else {
-                        // If credit deduction fails (rare), we must rollback the stock we just reserved
+                    if (committed) finalizeOrder(discount)
+                    else {
                         if (_binding != null) {
-                            Toast.makeText(context, "Payment failed (Credit error).", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Credit transaction failed.", Toast.LENGTH_SHORT).show()
                             rollbackStock(CartManager.getCartItems())
                         }
                     }
                 }
             })
         } else {
-            // No credit used, proceed directly
             finalizeOrder(0.0)
         }
     }
@@ -479,15 +484,11 @@ class CartFragment : Fragment() {
     private fun finalizeOrder(discount: Double) {
         val buyerId = auth.currentUser?.uid ?: return
         val itemsMap = CartManager.getCartItemsMap()
-        val sellerId = CartManager.getSellerId()
-
-        // Calculate Finals
+        val sellerId = CartManager.getSellerId() ?: return
         val subtotal = CartManager.getCartTotal()
         val totalBeforeDiscount = subtotal + calculatedDeliveryFee
         val finalPrice = totalBeforeDiscount - discount
         val paymentMethod = if (binding.radioCard.isChecked) Order.PAY_CARD else Order.PAY_CASH
-
-        if (sellerId == null) return
 
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(buyerSnap: DataSnapshot) {
@@ -497,7 +498,6 @@ class CartFragment : Fragment() {
                         val sellerName = sellerSnap.getValue(User::class.java)?.name ?: "Unknown"
                         val orderId = database.child("Orders").push().key ?: UUID.randomUUID().toString()
 
-                        // Updated Order Object with New Fields
                         val order = Order(
                             orderId = orderId,
                             buyerId = buyerId,
@@ -505,7 +505,7 @@ class CartFragment : Fragment() {
                             buyerName = buyerName,
                             sellerName = sellerName,
                             items = itemsMap,
-                            totalPrice = totalBeforeDiscount, // Original price before discount
+                            totalPrice = totalBeforeDiscount,
                             status = Order.STATUS_PENDING,
                             deliveryType = if (binding.radioDelivery.isChecked) Order.TYPE_DELIVERY else Order.TYPE_PICKUP,
                             deliveryAddress = if (binding.radioDelivery.isChecked) selectedDeliveryAddress else null,
@@ -527,15 +527,14 @@ class CartFragment : Fragment() {
         database.child("Orders").child(orderId).setValue(order)
             .addOnSuccessListener {
                 if (_binding == null) return@addOnSuccessListener
-                Toast.makeText(context, "Order placed successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Order placed!", Toast.LENGTH_SHORT).show()
                 CartManager.clearCart()
                 updateCartView()
                 binding.placeOrderButton.isEnabled = true
             }
             .addOnFailureListener {
                 if (_binding == null) return@addOnFailureListener
-                Toast.makeText(context, "Failed to place order: ${it.message}", Toast.LENGTH_SHORT).show()
-                // Note: Real apps would need a rollback mechanism for stock/credit here if this final step fails
+                Toast.makeText(context, "Failed to place order.", Toast.LENGTH_SHORT).show()
                 binding.placeOrderButton.isEnabled = true
             }
     }
@@ -547,7 +546,7 @@ class CartFragment : Fragment() {
             intent.putExtra("SELLER_ID", currentSellerId)
             startActivity(intent)
         } else {
-            (activity as? BuyerHomeActivity)?.findViewById<ViewPager2>(com.guc_proj.signaling_proj.R.id.buyer_view_pager)?.currentItem = 0
+            (activity as? BuyerHomeActivity)?.findViewById<ViewPager2>(R.id.buyer_view_pager)?.currentItem = 0
         }
     }
 
