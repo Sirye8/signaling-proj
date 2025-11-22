@@ -189,12 +189,14 @@
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/incomingCallLayout"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="24dp"
         android:visibility="gone"
-        style="@style/Widget.Material3.CardView.Filled"
-        app:cardBackgroundColor="?attr/colorTertiaryContainer"
+        style="@style/Widget.Material3.CardView.Elevated"
+        app:cardElevation="8dp"
+        app:cardCornerRadius="28dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -207,51 +209,92 @@
             android:orientation="vertical"
             android:padding="32dp">
 
-            <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
-                android:src="@drawable/baseline_call_24"
-                app:tint="?attr/colorOnTertiaryContainer"/>
+            <com.google.android.material.imageview.ShapeableImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:background="?attr/colorSecondaryContainer"
+                android:padding="16dp"
+                android:src="@drawable/baseline_account_box_24"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Circle"
+                app:tint="?attr/colorOnSecondaryContainer"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Incoming Call"
-                android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
-                android:textColor="?attr/colorOnTertiaryContainer"/>
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant"/>
 
             <TextView
                 android:id="@+id/incomingIpText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="from Unknown"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                android:textColor="?attr/colorOnTertiaryContainer"/>
+                android:gravity="center"
+                android:text="John Doe\n(Seller)"
+                android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+                android:textColor="?attr/colorOnSurface"
+                android:textStyle="bold"/>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
-                android:orientation="horizontal"
-                android:gravity="center">
+                android:layout_marginTop="48dp"
+                android:gravity="center"
+                android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnDecline"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="16dp"
-                    android:text="Decline"
-                    android:textColor="?attr/colorError" />
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="48dp">
 
-                <Button
-                    android:id="@+id/btnAccept"
-                    style="@style/Widget.Material3.Button"
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/btnDecline"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:fabSize="normal"
+                        app:backgroundTint="?attr/colorError"
+                        app:tint="?attr/colorOnError"
+                        app:srcCompat="@drawable/ic_call_end"
+                        app:elevation="0dp"
+                        android:contentDescription="Decline"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Decline"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"/>
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Answer" />
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/btnAccept"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:fabSize="normal"
+                        app:backgroundTint="@color/status_green"
+                        app:tint="?attr/colorOnPrimary"
+                        app:srcCompat="@drawable/baseline_call_24"
+                        app:elevation="0dp"
+                        android:contentDescription="Answer"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Answer"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"/>
+                </LinearLayout>
+
             </LinearLayout>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

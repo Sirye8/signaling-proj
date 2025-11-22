@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.guc_proj.signaling_proj.databinding.ActivityRegisterBinding
+import com.guc_proj.signaling_proj.services.AppService
 
 class RegisterActivity : AppCompatActivity() {
 
@@ -20,7 +21,6 @@ class RegisterActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
 
-        // Adjust hint based on role
         binding.roleRadioGroup.setOnCheckedChangeListener { _, checkedId ->
             if (checkedId == R.id.sellerRadioButton) {
                 binding.nameTextInputLayout.hint = "Shop Name"
@@ -50,7 +50,6 @@ class RegisterActivity : AppCompatActivity() {
             return
         }
 
-        // "Delivery" is no longer a separate role at registration
         val role = when(selectedRoleId) {
             R.id.buyerRadioButton -> "Buyer"
             R.id.sellerRadioButton -> "Seller"
@@ -82,6 +81,10 @@ class RegisterActivity : AppCompatActivity() {
                         if (isFinishing || isDestroyed) return@addOnCompleteListener
                         if (dbTask.isSuccessful) {
                             Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
+
+                            // Start Service
+                            startServices()
+
                             val homeIntent = when(role) {
                                 "Buyer" -> Intent(this, BuyerHomeActivity::class.java)
                                 "Seller" -> Intent(this, SellerHomeActivity::class.java)
@@ -98,5 +101,13 @@ class RegisterActivity : AppCompatActivity() {
                 Toast.makeText(this, "Authentication failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun startServices() {
+        val serviceIntent = Intent(this, AppService::class.java).apply {
+            action = AppService.ACTION_INIT
+            putExtra(AppService.EXTRA_PORT, 5000)
+        }
+        startService(serviceIntent)
     }
 }

@@ -10,6 +10,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.guc_proj.signaling_proj.databinding.ActivityLoginBinding
+import com.guc_proj.signaling_proj.services.AppService
 
 class LoginActivity : AppCompatActivity() {
 
@@ -24,6 +25,7 @@ class LoginActivity : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
         val fromLogout = intent.getBooleanExtra("FROM_LOGOUT", false)
         if (auth.currentUser != null && !fromLogout) {
+            startServices()
             redirectUser(auth.currentUser!!.uid)
         }
 
@@ -49,11 +51,20 @@ class LoginActivity : AppCompatActivity() {
             if (isFinishing || isDestroyed) return@addOnCompleteListener
             if (task.isSuccessful) {
                 Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
+                startServices()
                 redirectUser(auth.currentUser!!.uid)
             } else {
                 Toast.makeText(this, "Login failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun startServices() {
+        val serviceIntent = Intent(this, AppService::class.java).apply {
+            action = AppService.ACTION_INIT
+            putExtra(AppService.EXTRA_PORT, 5000)
+        }
+        startService(serviceIntent)
     }
 
     private fun redirectUser(userId: String) {

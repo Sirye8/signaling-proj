@@ -27,6 +27,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.buyer.PayActivity
 import com.guc_proj.signaling_proj.databinding.FragmentProfileBinding
+import com.guc_proj.signaling_proj.services.AppService
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -83,7 +84,6 @@ class ProfileFragment : Fragment() {
             startActivity(Intent(requireContext(), AddressesActivity::class.java))
         }
 
-        // NEW: Pay/Wallet Navigation
         binding.payWalletButton.setOnClickListener {
             startActivity(Intent(requireContext(), PayActivity::class.java))
         }
@@ -103,7 +103,6 @@ class ProfileFragment : Fragment() {
             showDeleteConfirmationDialog()
         }
 
-        // Delivery Opt-in Button Logic
         binding.deliveryModeButton.setOnClickListener {
             startActivity(Intent(requireContext(), DeliveryHomeActivity::class.java))
         }
@@ -229,19 +228,17 @@ class ProfileFragment : Fragment() {
                 if (_binding == null) return
                 currentUser = snapshot.getValue(User::class.java)
                 currentUser?.let { user ->
-
-                    // Role-based UI Adjustments
                     when (user.role) {
                         "Seller" -> {
                             binding.nameTextInputLayout.hint = "Shop Name"
                             binding.manageAddressesButton.visibility = View.VISIBLE
-                            binding.deliveryModeButton.visibility = View.GONE // Seller doesn't need this
+                            binding.deliveryModeButton.visibility = View.GONE
                             binding.payWalletButton.visibility = View.GONE
                         }
                         else -> { // Buyer
                             binding.nameTextInputLayout.hint = "Name"
                             binding.manageAddressesButton.visibility = View.VISIBLE
-                            binding.deliveryModeButton.visibility = View.VISIBLE // Opt-in available for Buyers
+                            binding.deliveryModeButton.visibility = View.VISIBLE
                             binding.payWalletButton.visibility = View.VISIBLE
                         }
                     }
@@ -289,6 +286,9 @@ class ProfileFragment : Fragment() {
     }
 
     private fun logoutUser() {
+        // Stop the App Service to remove the persistent notification
+        context?.stopService(Intent(context, AppService::class.java))
+
         val hostActivity = activity
         if (hostActivity != null && isAdded) {
             auth.signOut()
