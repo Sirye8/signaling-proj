@@ -18,12 +18,15 @@ import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.AddressFormActivity
 import com.guc_proj.signaling_proj.AddressItem
 import com.guc_proj.signaling_proj.BuyerHomeActivity
+import com.guc_proj.signaling_proj.CartItem
 import com.guc_proj.signaling_proj.Order
+import com.guc_proj.signaling_proj.PaymentCard
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.User
 import com.guc_proj.signaling_proj.databinding.FragmentCartBinding
 import java.util.*
 import java.util.Locale
+import kotlin.math.min
 
 class CartFragment : Fragment() {
 
@@ -34,12 +37,16 @@ class CartFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private val database = FirebaseDatabase.getInstance().reference
 
-    // List of Address Objects
+    // --- Address Variables ---
     private val userAddresses = mutableListOf<AddressItem>()
-
     private var selectedDeliveryAddress: String? = null // Holds the formatted string for the Order
+
+    private val userCards = mutableListOf<PaymentCard>()
+    private var selectedCard: PaymentCard? = null
+    private var availableCredit: Double = 0.0
     private var calculatedDeliveryFee: Double = 0.0
 
+    // --- Constants ---
     private val FEE_HIGH = 15.0
     private val FEE_MED = 10.0
     private val FEE_LOW = 5.0
@@ -79,20 +86,93 @@ class CartFragment : Fragment() {
 
         setupRecyclerView()
         setupAddressSelector()
+        setupPaymentMethodSelector()
 
+        // Listeners
         binding.deliveryRadioGroup.setOnCheckedChangeListener { _, _ -> recalculateTotals() }
+
+        // Payment Method Toggle (Card vs Cash)
+        binding.paymentMethodGroup.setOnCheckedChangeListener { _, checkedId ->
+            binding.cardSelectionLayout.visibility = if(checkedId == R.id.radioCard) View.VISIBLE else View.GONE
+        }
+
+        // Credit Switch Listener
+        binding.useCreditSwitch.setOnCheckedChangeListener { _, _ -> recalculateTotals() }
+
+        // Buttons
         binding.addMoreItemsButton.setOnClickListener { navigateToAddMoreItems() }
         binding.placeOrderButton.setOnClickListener { attemptPlaceOrder() }
         binding.clearCartButton.setOnClickListener { CartManager.clearCart(); updateCartView() }
 
+        // Initial Fetches
         updateCartView()
         fetchUserAddresses()
+        fetchUserFinancials()
     }
 
     override fun onResume() {
         super.onResume()
         updateCartView()
         fetchUserAddresses()
+    }
+
+    // --- Financial/Payment Logic ---
+
+    private fun fetchUserFinancials() {
+        val uid = auth.currentUser?.uid ?: return
+
+        // Listen for Credit
+        database.child("Users").child(uid).child("credit").addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                availableCredit = snapshot.getValue(Double::class.java) ?: 0.0
+                if (_binding != null) {
+                    binding.useCreditSwitch.text = String.format(Locale.US, "Use Delivery Credit ($%.2f)", availableCredit)
+                    binding.useCreditSwitch.isEnabled = availableCredit > 0
+                    recalculateTotals()
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
+
+        // Listen for Cards
+        database.child("Users").child(uid).child("Cards").addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                userCards.clear()
+                for (child in snapshot.children) {
+                    val card = child.getValue(PaymentCard::class.java)
+                    if (card != null) {
+                        userCards.add(card)
+                    }
+                }
+                if (_binding != null) {
+                    if (userCards.isNotEmpty()) {
+                        // Default to first card if none selected or valid
+                        if (selectedCard == null || !userCards.contains(selectedCard)) {
+                            selectedCard = userCards[0]
+                        }
+                        binding.selectedCardText.text = "${selectedCard?.cardNumber} (${selectedCard?.cardHolder})"
+                    } else {
+                        selectedCard = null
+                        binding.selectedCardText.text = "No cards saved"
+                    }
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
+    private fun setupPaymentMethodSelector() {
+        binding.cardSelectionLayout.setOnClickListener {
+            if (userCards.isEmpty()) {
+                Toast.makeText(context, "Please add a card in the Pay tab first", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            // Simple cycle through cards
+            val currentIndex = userCards.indexOf(selectedCard)
+            val nextIndex = (currentIndex + 1) % userCards.size
+            selectedCard = userCards[nextIndex]
+            binding.selectedCardText.text = "${selectedCard?.cardNumber} (${selectedCard?.cardHolder})"
+        }
     }
 
     private fun setupAddressSelector() {
@@ -119,8 +199,8 @@ class CartFragment : Fragment() {
                 val text1 = holder.itemView.findViewById<TextView>(android.R.id.text1)
                 val text2 = holder.itemView.findViewById<TextView>(android.R.id.text2)
 
-                text1.text = item.name // e.g. "Home"
-                text2.text = item.toFormattedString() // e.g. "123 Main St..."
+                text1.text = item.name
+                text2.text = item.toFormattedString()
 
                 holder.itemView.setOnClickListener {
                     selectedDeliveryAddress = item.toFormattedString()
@@ -165,7 +245,6 @@ class CartFragment : Fragment() {
                     }
                 }
 
-                // Auto-Select Logic
                 if (_binding != null) {
                     if (userAddresses.isNotEmpty() && selectedDeliveryAddress == null) {
                         // Default to first
@@ -173,8 +252,7 @@ class CartFragment : Fragment() {
                         selectedDeliveryAddress = default.toFormattedString()
                         updateSelectedAddressUI(default.name)
                     }
-
-                    // Validation: Ensure selected address is still valid in list logic (optional but safer)
+                    // Validation logic from original code
                     if (selectedDeliveryAddress != null) {
                         val exists = userAddresses.any { it.toFormattedString() == selectedDeliveryAddress }
                         if (!exists) {
@@ -205,13 +283,14 @@ class CartFragment : Fragment() {
             }
     }
 
-    // ... (Keep all robust Transaction/Order logic below exactly as it was) ...
-    // The only diff is 'selectedDeliveryAddress' is now populated via toFormattedString()
+    // --- Calculation Logic  ---
 
     private fun recalculateTotals() {
         if (_binding == null) return
-        val isDelivery = binding.radioDelivery.isChecked
         val subtotal = CartManager.getCartTotal()
+        val isDelivery = binding.radioDelivery.isChecked
+
+        // 1. Calculate Delivery Fee
         if (isDelivery) {
             binding.deliveryAddressSection.visibility = View.VISIBLE
             binding.deliveryFeeLayout.visibility = View.VISIBLE
@@ -233,7 +312,22 @@ class CartFragment : Fragment() {
             binding.deliveryFeeLayout.visibility = View.GONE
             calculatedDeliveryFee = 0.0
         }
-        val finalTotal = subtotal + calculatedDeliveryFee
+
+        val totalBeforeDiscount = subtotal + calculatedDeliveryFee
+
+        // 2. Calculate Credit Discount (New Logic)
+        var discount = 0.0
+        if (binding.useCreditSwitch.isChecked) {
+            discount = min(totalBeforeDiscount, availableCredit)
+            binding.discountLayout.visibility = View.VISIBLE
+            binding.discountTextView.text = String.format(Locale.US, "-$%.2f", discount)
+        } else {
+            binding.discountLayout.visibility = View.GONE
+        }
+
+        val finalTotal = totalBeforeDiscount - discount
+
+        // 3. Update UI
         binding.subtotalTextView.text = String.format(Locale.US, "$%.2f", subtotal)
         binding.totalPriceTextView.text = String.format(Locale.US, "$%.2f", finalTotal)
     }
@@ -262,25 +356,43 @@ class CartFragment : Fragment() {
         }
     }
 
+    // --- Order Placement Logic ---
+
     private fun attemptPlaceOrder() {
+        // Validation: Address
         val isDelivery = binding.radioDelivery.isChecked
         if (isDelivery && selectedDeliveryAddress.isNullOrEmpty()) {
             Toast.makeText(context, "Please select a delivery address.", Toast.LENGTH_SHORT).show()
             return
         }
+
+        // Validation: Card
+        val isCard = binding.radioCard.isChecked
+        if (isCard && selectedCard == null) {
+            Toast.makeText(context, "Please add/select a card in the Pay tab.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val sellerId = CartManager.getSellerId()
         if (sellerId == null || CartManager.getCartItems().isEmpty()) {
             Toast.makeText(context, "Cart is empty", Toast.LENGTH_SHORT).show()
             return
         }
+
         binding.placeOrderButton.isEnabled = false
         Toast.makeText(context, "Processing order...", Toast.LENGTH_SHORT).show()
+
+        // Start Sequence: Reserve -> Process Payment -> Finalize
         val itemsToBuy = CartManager.getCartItems()
         reserveNextItem(itemsToBuy, 0, mutableListOf())
     }
 
-    private fun reserveNextItem(items: List<com.guc_proj.signaling_proj.CartItem>, index: Int, reservedItems: MutableList<com.guc_proj.signaling_proj.CartItem>) {
-        if (index >= items.size) { finalizeOrder(); return }
+    private fun reserveNextItem(items: List<CartItem>, index: Int, reservedItems: MutableList<CartItem>) {
+        if (index >= items.size) {
+            // Stock reserved, move to next step: Payment/Credit processing
+            processCreditDeductionAndFinalize()
+            return
+        }
         val currentItem = items[index]
         val productId = currentItem.product?.productId ?: return
         val quantityNeeded = currentItem.quantityInCart
@@ -311,7 +423,7 @@ class CartFragment : Fragment() {
         })
     }
 
-    private fun rollbackStock(itemsToRestore: List<com.guc_proj.signaling_proj.CartItem>) {
+    private fun rollbackStock(itemsToRestore: List<CartItem>) {
         val productsRef = FirebaseDatabase.getInstance().getReference("Products")
         itemsToRestore.forEach { item ->
             val productId = item.product?.productId ?: return@forEach
@@ -328,12 +440,55 @@ class CartFragment : Fragment() {
         if (_binding != null) binding.placeOrderButton.isEnabled = true
     }
 
-    private fun finalizeOrder() {
+    // --- Process Credit Deduction ---
+    private fun processCreditDeductionAndFinalize() {
+        val subtotal = CartManager.getCartTotal()
+        val totalBeforeDiscount = subtotal + calculatedDeliveryFee
+        val discount = if (binding.useCreditSwitch.isChecked) min(totalBeforeDiscount, availableCredit) else 0.0
+
+        if (discount > 0) {
+            val uid = auth.currentUser?.uid ?: return
+            val creditRef = database.child("Users").child(uid).child("credit")
+
+            creditRef.runTransaction(object : Transaction.Handler {
+                override fun doTransaction(currentData: MutableData): Transaction.Result {
+                    val currentCredit = currentData.getValue(Double::class.java) ?: 0.0
+                    // Although UI limits discount, DB transaction ensures consistency
+                    if (currentCredit < discount) return Transaction.abort()
+                    currentData.value = currentCredit - discount
+                    return Transaction.success(currentData)
+                }
+                override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                    if (committed) {
+                        finalizeOrder(discount)
+                    } else {
+                        // If credit deduction fails (rare), we must rollback the stock we just reserved
+                        if (_binding != null) {
+                            Toast.makeText(context, "Payment failed (Credit error).", Toast.LENGTH_SHORT).show()
+                            rollbackStock(CartManager.getCartItems())
+                        }
+                    }
+                }
+            })
+        } else {
+            // No credit used, proceed directly
+            finalizeOrder(0.0)
+        }
+    }
+
+    private fun finalizeOrder(discount: Double) {
         val buyerId = auth.currentUser?.uid ?: return
         val itemsMap = CartManager.getCartItemsMap()
         val sellerId = CartManager.getSellerId()
-        val finalTotal = CartManager.getCartTotal() + calculatedDeliveryFee
+
+        // Calculate Finals
+        val subtotal = CartManager.getCartTotal()
+        val totalBeforeDiscount = subtotal + calculatedDeliveryFee
+        val finalPrice = totalBeforeDiscount - discount
+        val paymentMethod = if (binding.radioCard.isChecked) Order.PAY_CARD else Order.PAY_CASH
+
         if (sellerId == null) return
+
         database.child("Users").child(buyerId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(buyerSnap: DataSnapshot) {
                 val buyerName = buyerSnap.getValue(User::class.java)?.name ?: "Unknown"
@@ -341,13 +496,23 @@ class CartFragment : Fragment() {
                     override fun onDataChange(sellerSnap: DataSnapshot) {
                         val sellerName = sellerSnap.getValue(User::class.java)?.name ?: "Unknown"
                         val orderId = database.child("Orders").push().key ?: UUID.randomUUID().toString()
+
+                        // Updated Order Object with New Fields
                         val order = Order(
-                            orderId = orderId, buyerId = buyerId, sellerId = sellerId,
-                            buyerName = buyerName, sellerName = sellerName, items = itemsMap,
-                            totalPrice = finalTotal, status = Order.STATUS_PENDING,
+                            orderId = orderId,
+                            buyerId = buyerId,
+                            sellerId = sellerId,
+                            buyerName = buyerName,
+                            sellerName = sellerName,
+                            items = itemsMap,
+                            totalPrice = totalBeforeDiscount, // Original price before discount
+                            status = Order.STATUS_PENDING,
                             deliveryType = if (binding.radioDelivery.isChecked) Order.TYPE_DELIVERY else Order.TYPE_PICKUP,
                             deliveryAddress = if (binding.radioDelivery.isChecked) selectedDeliveryAddress else null,
-                            deliveryFee = calculatedDeliveryFee
+                            deliveryFee = calculatedDeliveryFee,
+                            paymentMethod = paymentMethod,
+                            discountApplied = discount,
+                            finalPrice = finalPrice
                         )
                         saveOrderToFirebase(orderId, order)
                     }
@@ -370,6 +535,7 @@ class CartFragment : Fragment() {
             .addOnFailureListener {
                 if (_binding == null) return@addOnFailureListener
                 Toast.makeText(context, "Failed to place order: ${it.message}", Toast.LENGTH_SHORT).show()
+                // Note: Real apps would need a rollback mechanism for stock/credit here if this final step fails
                 binding.placeOrderButton.isEnabled = true
             }
     }

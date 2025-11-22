@@ -6,5 +6,6 @@ data class User(
     //val address: String? = null,
     val email: String? = null,
     val role: String? = null,
-    val photoUrl: String? = null
+    val photoUrl: String? = null,
+    val credit: Double = 0.0 // Wallet/Rewards Balance
 )

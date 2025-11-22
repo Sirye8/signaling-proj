@@ -20,6 +20,7 @@ class RegisterActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
 
+        // Adjust hint based on role
         binding.roleRadioGroup.setOnCheckedChangeListener { _, checkedId ->
             if (checkedId == R.id.sellerRadioButton) {
                 binding.nameTextInputLayout.hint = "Shop Name"
@@ -33,7 +34,7 @@ class RegisterActivity : AppCompatActivity() {
         }
 
         binding.loginTextView.setOnClickListener {
-            finish() // Go back to LoginActivity
+            finish()
         }
     }
 
@@ -43,17 +44,16 @@ class RegisterActivity : AppCompatActivity() {
         val email = binding.emailEditText.text.toString().trim()
         val password = binding.passwordEditText.text.toString().trim()
 
-        // Get selected role
         val selectedRoleId = binding.roleRadioGroup.checkedRadioButtonId
         if (selectedRoleId == -1) {
             Toast.makeText(this, "Please select a role", Toast.LENGTH_SHORT).show()
             return
         }
 
+        // "Delivery" is no longer a separate role at registration
         val role = when(selectedRoleId) {
             R.id.buyerRadioButton -> "Buyer"
             R.id.sellerRadioButton -> "Seller"
-            R.id.deliveryRadioButton -> "Delivery"
             else -> "Buyer"
         }
 
@@ -71,7 +71,8 @@ class RegisterActivity : AppCompatActivity() {
                     phone = phone,
                     email = email,
                     role = role,
-                    photoUrl = ""
+                    photoUrl = "",
+                    credit = 0.0
                 )
 
                 FirebaseDatabase.getInstance().getReference("Users")
@@ -81,13 +82,10 @@ class RegisterActivity : AppCompatActivity() {
                         if (isFinishing || isDestroyed) return@addOnCompleteListener
                         if (dbTask.isSuccessful) {
                             Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
-
-                            // Redirect based on role
                             val homeIntent = when(role) {
                                 "Buyer" -> Intent(this, BuyerHomeActivity::class.java)
                                 "Seller" -> Intent(this, SellerHomeActivity::class.java)
-                                "Delivery" -> Intent(this, DeliveryHomeActivity::class.java)
-                                else -> Intent(this, LoginActivity::class.java)
+                                else -> Intent(this, BuyerHomeActivity::class.java)
                             }
                             homeIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                             startActivity(homeIntent)

@@ -75,6 +75,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginVertical="16dp"/>
 
+                <!-- Delivery Method -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -174,6 +175,65 @@
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
+
+                <com.google.android.material.divider.MaterialDivider
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="16dp"/>
+
+                <!-- Payment Method -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Payment"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textColor="?attr/colorOnSurface"/>
+
+                <RadioGroup
+                    android:id="@+id/paymentMethodGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+                    <RadioButton
+                        android:id="@+id/radioCash"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cash"
+                        android:checked="true"
+                        android:layout_marginEnd="16dp"/>
+                    <RadioButton
+                        android:id="@+id/radioCard"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Credit Card"/>
+                </RadioGroup>
+
+                <LinearLayout
+                    android:id="@+id/cardSelectionLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/numbers"
+                    android:padding="12dp"
+                    android:visibility="gone"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Selected Card:"/>
+
+                    <TextView
+                        android:id="@+id/selectedCardText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="**** 1234"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
 
@@ -194,6 +254,7 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
+                <!-- Totals Rows -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -232,6 +293,36 @@
                         android:textStyle="bold"/>
                 </LinearLayout>
 
+                <!-- Credit Switch -->
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/useCreditSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Use Delivery Credit ($0.00)"
+                    android:layout_marginVertical="4dp"/>
+
+                <LinearLayout
+                    android:id="@+id/discountLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    android:layout_marginBottom="4dp">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Rewards Discount:"
+                        android:textColor="?attr/colorPrimary"/>
+                    <TextView
+                        android:id="@+id/discountTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="-$5.00"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorPrimary"/>
+                </LinearLayout>
+
                 <com.google.android.material.divider.MaterialDivider
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -245,7 +336,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Total"
+                        android:text="Total to Pay"
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"/>
                     <TextView
                         android:id="@+id/totalPriceTextView"

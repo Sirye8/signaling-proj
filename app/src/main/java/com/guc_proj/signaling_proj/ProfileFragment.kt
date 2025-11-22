@@ -25,6 +25,7 @@ import com.amazonaws.services.s3.model.ListObjectsRequest
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.guc_proj.signaling_proj.buyer.PayActivity
 import com.guc_proj.signaling_proj.databinding.FragmentProfileBinding
 import java.io.File
 import java.io.FileOutputStream
@@ -82,6 +83,11 @@ class ProfileFragment : Fragment() {
             startActivity(Intent(requireContext(), AddressesActivity::class.java))
         }
 
+        // NEW: Pay/Wallet Navigation
+        binding.payWalletButton.setOnClickListener {
+            startActivity(Intent(requireContext(), PayActivity::class.java))
+        }
+
         binding.saveChangesButton.setOnClickListener {
             updateUserData()
             selectedImageUri?.let { uri ->
@@ -96,14 +102,20 @@ class ProfileFragment : Fragment() {
         binding.deleteUserButton.setOnClickListener {
             showDeleteConfirmationDialog()
         }
+
+        // Delivery Opt-in Button Logic
+        binding.deliveryModeButton.setOnClickListener {
+            startActivity(Intent(requireContext(), DeliveryHomeActivity::class.java))
+        }
     }
 
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             selectedImageUri = uri
-            if (_binding == null) return@registerForActivityResult
-            Glide.with(this).load(uri).into(binding.profileImageView)
-            Toast.makeText(context, "Photo selected. Press 'Save Changes' to upload.", Toast.LENGTH_LONG).show()
+            if (_binding != null) {
+                Glide.with(this).load(uri).into(binding.profileImageView)
+                Toast.makeText(context, "Photo selected. Press 'Save Changes' to upload.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -111,7 +123,6 @@ class ProfileFragment : Fragment() {
         try {
             if (AWS_ACCESS_KEY.isEmpty() || AWS_SECRET_KEY.isEmpty() || S3_BUCKET_NAME.isEmpty()) {
                 Log.e("ProfileFragment_S3", "AWS credentials are not set in local.properties")
-                Toast.makeText(context, "Storage service credentials missing.", Toast.LENGTH_LONG).show()
                 return
             }
 
@@ -123,7 +134,6 @@ class ProfileFragment : Fragment() {
                 .build()
         } catch (e: Exception) {
             Log.e("ProfileFragment_S3", "Error initializing S3 client: ${e.message}")
-            Toast.makeText(context, "Failed to connect to storage service.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -201,15 +211,15 @@ class ProfileFragment : Fragment() {
     private fun saveImageUrlToFirebase(photoUrl: String) {
         database.child("photoUrl").setValue(photoUrl)
             .addOnSuccessListener {
-                if (_binding == null) return@addOnSuccessListener
-                Toast.makeText(context?.applicationContext, "Profile photo updated!", Toast.LENGTH_SHORT).show()
-                selectedImageUri = null
+                if (_binding != null) {
+                    Toast.makeText(context?.applicationContext, "Profile photo updated!", Toast.LENGTH_SHORT).show()
+                    selectedImageUri = null
+                }
             }
             .addOnFailureListener {
-                if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
-                    return@addOnFailureListener
+                if (_binding != null) {
+                    Toast.makeText(context?.applicationContext, "Failed to save photo URL.", Toast.LENGTH_SHORT).show()
                 }
-                Toast.makeText(context?.applicationContext, "Failed to save photo URL.", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -220,20 +230,19 @@ class ProfileFragment : Fragment() {
                 currentUser = snapshot.getValue(User::class.java)
                 currentUser?.let { user ->
 
-                    // NEW: Handle UI based on Role
+                    // Role-based UI Adjustments
                     when (user.role) {
                         "Seller" -> {
                             binding.nameTextInputLayout.hint = "Shop Name"
                             binding.manageAddressesButton.visibility = View.VISIBLE
-                        }
-                        "Delivery" -> {
-                            binding.nameTextInputLayout.hint = "Name"
-                            // Delivery person does NOT see Address Management
-                            binding.manageAddressesButton.visibility = View.GONE
+                            binding.deliveryModeButton.visibility = View.GONE // Seller doesn't need this
+                            binding.payWalletButton.visibility = View.GONE
                         }
                         else -> { // Buyer
                             binding.nameTextInputLayout.hint = "Name"
                             binding.manageAddressesButton.visibility = View.VISIBLE
+                            binding.deliveryModeButton.visibility = View.VISIBLE // Opt-in available for Buyers
+                            binding.payWalletButton.visibility = View.VISIBLE
                         }
                     }
 
@@ -303,9 +312,7 @@ class ProfileFragment : Fragment() {
     private fun deleteUserAccount() {
         val user = auth.currentUser
         if (user == null || currentUserUid == null) {
-            if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
-                Toast.makeText(context, "Not logged in.", Toast.LENGTH_SHORT).show()
-            }
+            if (_binding != null) Toast.makeText(context, "Not logged in.", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -353,7 +360,7 @@ class ProfileFragment : Fragment() {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
+                if (_binding != null) {
                     Log.e("Delete", "Failed to query products for deletion: ${error.message}")
                     Toast.makeText(context, "Failed to delete products. Aborting.", Toast.LENGTH_LONG).show()
                 }
@@ -368,14 +375,10 @@ class ProfileFragment : Fragment() {
         deleteS3ProfileFolder()
 
         database.removeValue().addOnCompleteListener { dbTask ->
-            if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
-                return@addOnCompleteListener
-            }
+            if (_binding == null) return@addOnCompleteListener
             if (dbTask.isSuccessful) {
                 user.delete().addOnCompleteListener { authTask ->
-                    if (_binding == null || !isAdded || (activity != null && requireActivity().isFinishing)) {
-                        return@addOnCompleteListener
-                    }
+                    if (_binding == null) return@addOnCompleteListener
                     if (authTask.isSuccessful) {
                         Toast.makeText(appCtx, "Account deleted successfully.", Toast.LENGTH_SHORT).show()
                         logoutUser()

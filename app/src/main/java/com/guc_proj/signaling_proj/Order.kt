@@ -12,12 +12,19 @@ data class Order(
     val buyerName: String? = null,
     val sellerName: String? = null,
     val items: Map<String, CartItem>? = null,
-    val totalPrice: Double? = null,
+    val totalPrice: Double? = null, // Original Total
     val status: String? = STATUS_PENDING,
+
     // Delivery Info
     val deliveryType: String = "Pickup",
     val deliveryAddress: String? = null,
     val deliveryFee: Double = 0.0,
+
+    // Payment Info
+    val paymentMethod: String = "Cash", // "Cash" or "Credit Card"
+    val discountApplied: Double = 0.0, // Rewards used
+    val finalPrice: Double = 0.0, // Amount actually paid
+
     // Order Date
     val timestamp: Long = System.currentTimeMillis()
 ) : Parcelable {
@@ -32,5 +39,8 @@ data class Order(
         const val STATUS_COMPLETED = "Completed"
         const val TYPE_PICKUP = "Pickup"
         const val TYPE_DELIVERY = "Delivery"
+
+        const val PAY_CASH = "Cash"
+        const val PAY_CARD = "Credit Card"
     }
 }

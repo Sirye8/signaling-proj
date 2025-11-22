@@ -12,8 +12,4 @@
         android:id="@+id/nav_delivery_voip"
         android:icon="@drawable/baseline_call_24"
         android:title="Call" />
-    <item
-        android:id="@+id/nav_delivery_profile"
-        android:icon="@drawable/baseline_account_box_24"
-        android:title="Profile" />
 </menu>

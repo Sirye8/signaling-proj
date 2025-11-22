@@ -26,13 +26,13 @@ class BuyerHomeActivity : AppCompatActivity() {
         viewPager = binding.buyerViewPager
         pagerAdapter = BuyerPageAdapter(this)
         viewPager.adapter = pagerAdapter
-        // Disable user swipe to prevent accidental VoIP connection issues, or keep enabled.
-        // Usually better to keep enabled for consistency.
 
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                binding.bottomNavigation.menu.getItem(position).isChecked = true
+                if (position < binding.bottomNavigation.menu.size()) {
+                    binding.bottomNavigation.menu.getItem(position).isChecked = true
+                }
             }
         })
 
@@ -67,14 +67,14 @@ class BuyerHomeActivity : AppCompatActivity() {
     }
 
     private inner class BuyerPageAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
-        override fun getItemCount(): Int = 5 // Increased count
+        override fun getItemCount(): Int = 5
 
         override fun createFragment(position: Int): Fragment {
             return when (position) {
                 0 -> ShopsFragment()
                 1 -> CartFragment()
                 2 -> BuyerOrdersFragment()
-                3 -> VoIPFragment() // Added VoIP
+                3 -> VoIPFragment()
                 4 -> ProfileFragment()
                 else -> ShopsFragment()
             }

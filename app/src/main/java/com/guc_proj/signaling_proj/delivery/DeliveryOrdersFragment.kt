@@ -64,8 +64,6 @@ class DeliveryOrdersFragment : Fragment() {
         binding.loadingIndicator.visibility = View.VISIBLE
         val currentDriverId = auth.currentUser?.uid ?: return
 
-        // Listen to all orders and filter client-side for complexity reasons
-        // (Firebase complex queries require indices)
         database.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (_binding == null) return
@@ -75,13 +73,10 @@ class DeliveryOrdersFragment : Fragment() {
                 for (child in snapshot.children) {
                     val order = child.getValue(Order::class.java) ?: continue
 
-                    // Only care about DELIVERY type orders
                     if (order.deliveryType == Order.TYPE_DELIVERY) {
-                        // 1. My Active Jobs
                         if (order.deliveryPersonId == currentDriverId && order.status != Order.STATUS_DELIVERED) {
                             myJobsList.add(order)
                         }
-                        // 2. Available Jobs (Ready for Pickup AND Unassigned)
                         else if (order.status == Order.STATUS_READY_FOR_PICKUP && order.deliveryPersonId == null) {
                             availableList.add(order)
                         }
@@ -92,8 +87,6 @@ class DeliveryOrdersFragment : Fragment() {
                 myJobsAdapter.updateList(myJobsList)
 
                 binding.loadingIndicator.visibility = View.GONE
-
-                // UI Toggles
                 binding.myJobsTitle.visibility = if (myJobsList.isNotEmpty()) View.VISIBLE else View.GONE
                 binding.emptyView.visibility = if (availableList.isEmpty()) View.VISIBLE else View.GONE
             }
@@ -113,22 +106,33 @@ class DeliveryOrdersFragment : Fragment() {
 
         order.orderId?.let { id ->
             database.child(id).updateChildren(updates)
-                .addOnSuccessListener {
-                    Toast.makeText(context, "Delivery Accepted!", Toast.LENGTH_SHORT).show()
-                }
-                .addOnFailureListener {
-                    Toast.makeText(context, "Failed to accept.", Toast.LENGTH_SHORT).show()
-                }
+                .addOnSuccessListener { Toast.makeText(context, "Delivery Accepted!", Toast.LENGTH_SHORT).show() }
         }
     }
 
     private fun completeDelivery(order: Order) {
-        order.orderId?.let { id ->
-            database.child(id).child("status").setValue(Order.STATUS_DELIVERED)
-                .addOnSuccessListener {
-                    Toast.makeText(context, "Order Delivered!", Toast.LENGTH_SHORT).show()
-                }
-        }
+        val driverId = auth.currentUser?.uid ?: return
+        val orderId = order.orderId ?: return
+        val fee = order.deliveryFee
+
+        // 1. Update Order Status
+        database.child(orderId).child("status").setValue(Order.STATUS_DELIVERED)
+            .addOnSuccessListener {
+                // 2. Reward Driver (Update Credit)
+                val userCreditRef = FirebaseDatabase.getInstance().getReference("Users").child(driverId).child("credit")
+                userCreditRef.runTransaction(object : Transaction.Handler {
+                    override fun doTransaction(currentData: MutableData): Transaction.Result {
+                        val currentCredit = currentData.getValue(Double::class.java) ?: 0.0
+                        currentData.value = currentCredit + fee
+                        return Transaction.success(currentData)
+                    }
+                    override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
+                        if (committed) {
+                            Toast.makeText(context, "Delivered! Earned $${fee}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                })
+            }
     }
 
     override fun onDestroyView() {

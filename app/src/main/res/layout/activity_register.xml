@@ -54,11 +54,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="I am a Seller" />
-                <RadioButton
-                    android:id="@+id/deliveryRadioButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="I am a Delivery Person" />
             </RadioGroup>
         </com.google.android.material.card.MaterialCardView>
 

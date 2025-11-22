@@ -21,6 +21,11 @@ class DeliveryHomeActivity : AppCompatActivity() {
         binding = ActivityDeliveryHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Setup toolbar back navigation since this is now a sub-activity for Buyers
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener { finish() }
+
         viewPager = binding.deliveryViewPager
         pagerAdapter = DeliveryPageAdapter(this)
         viewPager.adapter = pagerAdapter
@@ -36,21 +41,20 @@ class DeliveryHomeActivity : AppCompatActivity() {
                 R.id.nav_delivery_jobs -> viewPager.currentItem = 0
                 R.id.nav_delivery_history -> viewPager.currentItem = 1
                 R.id.nav_delivery_voip -> viewPager.currentItem = 2
-                R.id.nav_delivery_profile -> viewPager.currentItem = 3
             }
             true
         }
     }
 
     private inner class DeliveryPageAdapter(fa: FragmentActivity) : FragmentStateAdapter(fa) {
-        override fun getItemCount(): Int = 4
+        // Removed Profile Fragment
+        override fun getItemCount(): Int = 3
 
         override fun createFragment(position: Int): Fragment {
             return when (position) {
-                0 -> DeliveryOrdersFragment() // Active Jobs & Available
-                1 -> DeliveryHistoryFragment() // Completed Jobs & Earnings
+                0 -> DeliveryOrdersFragment()
+                1 -> DeliveryHistoryFragment()
                 2 -> VoIPFragment()
-                3 -> ProfileFragment()
                 else -> DeliveryOrdersFragment()
             }
         }
