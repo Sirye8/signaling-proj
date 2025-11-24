@@ -74,10 +74,15 @@ class DeliveryOrdersFragment : Fragment() {
                     val order = child.getValue(Order::class.java) ?: continue
 
                     if (order.deliveryType == Order.TYPE_DELIVERY) {
+                        // 1. My Active Jobs (I already accepted these)
                         if (order.deliveryPersonId == currentDriverId && order.status != Order.STATUS_DELIVERED) {
                             myJobsList.add(order)
                         }
-                        else if (order.status == Order.STATUS_READY_FOR_PICKUP && order.deliveryPersonId == null) {
+                        // 2. Available for Pickup
+                        // Condition: Ready + No Driver + VOLUNTEER REQUESTED
+                        else if (order.status == Order.STATUS_READY_FOR_PICKUP &&
+                            order.deliveryPersonId == null &&
+                            order.isVolunteerRequested == true) {
                             availableList.add(order)
                         }
                     }

@@ -25,6 +25,9 @@ data class Order(
     val discountApplied: Double = 0.0, // Rewards used
     val finalPrice: Double = 0.0, // Amount actually paid
 
+    // New Flag for Volunteer Logic
+    val isVolunteerRequested: Boolean = false,
+
     // Order Date
     val timestamp: Long = System.currentTimeMillis()
 ) : Parcelable {

@@ -116,6 +116,12 @@ class CartFragment : Fragment() {
         binding.placeOrderButton.setOnClickListener { attemptPlaceOrder() }
         binding.clearCartButton.setOnClickListener { CartManager.clearCart(); updateCartView() }
 
+        // Handle Explore Shops click
+        binding.exploreShopsButton.setOnClickListener {
+            // Navigate to the first tab (Shops) in BuyerHomeActivity
+            (activity as? BuyerHomeActivity)?.findViewById<ViewPager2>(R.id.buyer_view_pager)?.currentItem = 0
+        }
+
         updateCartView()
         fetchUserAddresses()
         fetchUserFinancials()
@@ -371,15 +377,34 @@ class CartFragment : Fragment() {
     private fun updateCartView() {
         val cartItems = CartManager.getCartItems()
         cartAdapter.updateItems(cartItems)
+
         if (_binding == null) return
+
         if (cartItems.isEmpty()) {
+            // Empty State
             binding.emptyCartView.visibility = View.VISIBLE
+            binding.exploreShopsButton.visibility = View.VISIBLE // Show Explore Button
+
+            // Hide Cart Content
             binding.cartContentScroll.visibility = View.GONE
             binding.totalsContainer.visibility = View.GONE
+
+            // Hide Bottom Buttons
+            binding.placeOrderButton.visibility = View.GONE
+            binding.clearCartButton.visibility = View.GONE
         } else {
+            // Active State
             binding.emptyCartView.visibility = View.GONE
+            binding.exploreShopsButton.visibility = View.GONE // Hide Explore Button
+
+            // Show Cart Content
             binding.cartContentScroll.visibility = View.VISIBLE
             binding.totalsContainer.visibility = View.VISIBLE
+
+            // Show Bottom Buttons
+            binding.placeOrderButton.visibility = View.VISIBLE
+            binding.clearCartButton.visibility = View.VISIBLE
+
             recalculateTotals()
         }
     }

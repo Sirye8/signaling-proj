@@ -7,6 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.google.android.material.chip.Chip
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.databinding.ItemOrderSellerBinding
@@ -37,17 +38,15 @@ class SellerOrderAdapter(
 
         with(holder.binding) {
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
-            // Sellers usually see the Total Price of items, disregarding buyer's personal credit discount
-            // But let's show final price if that's what determines cash collection
             totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
 
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
             dateTextView.text = sdf.format(Date(order.timestamp))
 
-            // Status Text Logic
+            // Status Display
             var displayStatus = order.status
             if (order.deliveryType == Order.TYPE_DELIVERY && order.status == Order.STATUS_READY_FOR_PICKUP) {
-                displayStatus = "Waiting for Driver"
+                if (order.isVolunteerRequested) displayStatus = "Waiting for Vol." else displayStatus = "Ready"
             }
 
             statusTextView.text = displayStatus
@@ -67,30 +66,19 @@ class SellerOrderAdapter(
                 deliveryAddressTextView.visibility = View.GONE
             }
 
-            // Payment Info
             paymentInfoTextView.text = order.paymentMethod
 
+            // Items
             itemsContainer.removeAllViews()
             order.items?.values?.forEach { cartItem ->
                 val product = cartItem.product
                 if (product != null) {
                     val itemView = LayoutInflater.from(context).inflate(R.layout.view_order_item_row, itemsContainer, false)
-                    val thumb = itemView.findViewById<ImageView>(R.id.itemThumb)
-                    val qty = itemView.findViewById<TextView>(R.id.itemQty)
-                    val name = itemView.findViewById<TextView>(R.id.itemName)
-                    val price = itemView.findViewById<TextView>(R.id.itemPrice)
-
-                    name.text = product.name
-                    qty.text = "${cartItem.quantityInCart}x"
+                    itemView.findViewById<TextView>(R.id.itemQty).text = "${cartItem.quantityInCart}x"
+                    itemView.findViewById<TextView>(R.id.itemName).text = product.name
                     val itemTotal = (product.price ?: 0.0) * cartItem.quantityInCart
-                    price.text = String.format(Locale.US, "$%.2f", itemTotal)
-
-                    Glide.with(context)
-                        .load(product.photoUrl)
-                        .placeholder(R.drawable.ic_launcher_foreground)
-                        .centerCrop()
-                        .into(thumb)
-
+                    itemView.findViewById<TextView>(R.id.itemPrice).text = String.format(Locale.US, "$%.2f", itemTotal)
+                    Glide.with(context).load(product.photoUrl).placeholder(R.drawable.ic_launcher_foreground).into(itemView.findViewById(R.id.itemThumb))
                     itemsContainer.addView(itemView)
                 }
             }
@@ -98,6 +86,25 @@ class SellerOrderAdapter(
             pendingActionsLayout.visibility = View.GONE
             acceptedActionsScrollView.visibility = View.GONE
 
+            // --- "Ask for Volunteer" Button Logic ---
+            // Only visible if Delivery type AND Ready for Pickup
+            val volunteerButton = holder.itemView.findViewById<Chip>(R.id.askVolunteerButton)
+            if (order.deliveryType == Order.TYPE_DELIVERY && order.status == Order.STATUS_READY_FOR_PICKUP) {
+                volunteerButton.visibility = View.VISIBLE
+                if (order.isVolunteerRequested) {
+                    volunteerButton.text = "Volunteer Requested"
+                    volunteerButton.isEnabled = false
+                    volunteerButton.setChipIconTintResource(R.color.status_green)
+                } else {
+                    volunteerButton.text = "Ask for Volunteer"
+                    volunteerButton.isEnabled = true
+                    volunteerButton.setChipIconTintResource(R.color.black)
+                }
+            } else {
+                volunteerButton.visibility = View.GONE
+            }
+
+            // --- State Transitions ---
             when (order.status) {
                 Order.STATUS_PENDING -> {
                     pendingActionsLayout.visibility = View.VISIBLE
@@ -112,27 +119,48 @@ class SellerOrderAdapter(
                     acceptedActionsScrollView.visibility = View.VISIBLE
                     setPreparingButton.visibility = View.GONE
                     setOutForDeliveryButton.visibility = View.VISIBLE
-                    setOutForDeliveryButton.text = "Ready for Pickup"
+                    setOutForDeliveryButton.text = "Ready for Pickup" // Next Step
+                    setOutForDeliveryButton.setOnClickListener { onActionClick(order, Order.STATUS_READY_FOR_PICKUP) }
                     setDeliveredButton.visibility = View.GONE
                 }
                 Order.STATUS_READY_FOR_PICKUP -> {
+                    acceptedActionsScrollView.visibility = View.VISIBLE
+                    setPreparingButton.visibility = View.GONE
+
                     if (order.deliveryType == Order.TYPE_PICKUP) {
-                        acceptedActionsScrollView.visibility = View.VISIBLE
-                        setPreparingButton.visibility = View.GONE
+                        // Pickup Flow: Show "Mark Picked Up"
                         setOutForDeliveryButton.visibility = View.GONE
                         setDeliveredButton.visibility = View.VISIBLE
                         setDeliveredButton.text = "Mark Picked Up"
+                        setDeliveredButton.setOnClickListener { onActionClick(order, Order.STATUS_COMPLETED) }
                     } else {
-                        acceptedActionsScrollView.visibility = View.GONE
+                        // Delivery Flow: Seller can still click "Dispatch" to do it themselves
+                        setOutForDeliveryButton.visibility = View.VISIBLE
+                        setOutForDeliveryButton.text = "Dispatch"
+                        setOutForDeliveryButton.setOnClickListener { onActionClick(order, Order.STATUS_OUT_FOR_DELIVERY) }
+
+                        setDeliveredButton.visibility = View.GONE
                     }
+                }
+                Order.STATUS_OUT_FOR_DELIVERY -> {
+                    // Seller delivered it themselves -> Show "Mark Delivered"
+                    acceptedActionsScrollView.visibility = View.VISIBLE
+                    setPreparingButton.visibility = View.GONE
+                    setOutForDeliveryButton.visibility = View.GONE
+
+                    setDeliveredButton.visibility = View.VISIBLE
+                    setDeliveredButton.text = "Mark Delivered"
+                    setDeliveredButton.setOnClickListener { onActionClick(order, Order.STATUS_DELIVERED) }
                 }
             }
 
+            // Click Listeners for simple actions
             acceptButton.setOnClickListener { onActionClick(order, Order.STATUS_ACCEPTED) }
             rejectButton.setOnClickListener { onActionClick(order, Order.STATUS_REJECTED) }
             setPreparingButton.setOnClickListener { onActionClick(order, Order.STATUS_PREPARING) }
-            setOutForDeliveryButton.setOnClickListener { onActionClick(order, Order.STATUS_READY_FOR_PICKUP) }
-            setDeliveredButton.setOnClickListener { onActionClick(order, Order.STATUS_COMPLETED) }
+            // setOutForDeliveryButton & setDeliveredButton listeners are set inside 'when' for specific context
+
+            volunteerButton.setOnClickListener { onActionClick(order, "ACTION_ASK_VOLUNTEER") }
         }
     }
 

@@ -163,6 +163,15 @@
                 android:orientation="horizontal">
 
                 <com.google.android.material.chip.Chip
+                    android:id="@+id/askVolunteerButton"
+                    style="@style/Widget.Material3.Chip.Assist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    app:chipIcon="@drawable/baseline_devices_24"
+                    android:text="Ask for Volunteer" />
+
+                <com.google.android.material.chip.Chip
                     android:id="@+id/setPreparingButton"
                     style="@style/Widget.Material3.Chip.Assist"
                     android:layout_width="wrap_content"

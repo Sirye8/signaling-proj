@@ -27,24 +27,15 @@ class SellerOrdersFragment : Fragment() {
     private var ordersQuery: Query? = null
     private var ordersListener: ValueEventListener? = null
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSellerOrdersBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         auth = FirebaseAuth.getInstance()
-        val currentUserId = auth.currentUser?.uid
-        if (currentUserId == null) {
-            Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
-            return
-        }
-
+        val currentUserId = auth.currentUser?.uid ?: return
         database = FirebaseDatabase.getInstance().getReference("Orders")
 
         setupRecyclerView()
@@ -52,8 +43,12 @@ class SellerOrdersFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        orderAdapter = SellerOrderAdapter(orderList) { order, newStatus ->
-            showUpdateConfirmationDialog(order, newStatus)
+        orderAdapter = SellerOrderAdapter(orderList) { order, action ->
+            if (action == "ACTION_ASK_VOLUNTEER") {
+                updateVolunteerRequest(order)
+            } else {
+                showUpdateConfirmationDialog(order, action)
+            }
         }
         binding.ordersRecyclerView.apply {
             layoutManager = LinearLayoutManager(context)
@@ -74,31 +69,27 @@ class SellerOrdersFragment : Fragment() {
                 }
                 orderList.reverse()
                 orderAdapter.updateOrders(orderList)
-
                 binding.loadingIndicator.visibility = View.GONE
-                if (orderList.isEmpty()) {
-                    binding.emptyView.visibility = View.VISIBLE
-                    binding.ordersRecyclerView.visibility = View.GONE
-                } else {
-                    binding.emptyView.visibility = View.GONE
-                    binding.ordersRecyclerView.visibility = View.VISIBLE
-                }
+                binding.emptyView.visibility = if (orderList.isEmpty()) View.VISIBLE else View.GONE
             }
-
             override fun onCancelled(error: DatabaseError) {
-                if (_binding != null && isAdded && activity != null && !requireActivity().isFinishing) {
-                    Toast.makeText(context, "Failed: ${error.message}", Toast.LENGTH_SHORT).show()
-                    binding.loadingIndicator.visibility = View.GONE
-                }
+                if (_binding != null) binding.loadingIndicator.visibility = View.GONE
             }
         }
         ordersQuery?.addValueEventListener(ordersListener!!)
     }
 
+    private fun updateVolunteerRequest(order: Order) {
+        if (order.orderId == null) return
+        database.child(order.orderId).child("isVolunteerRequested").setValue(true)
+            .addOnSuccessListener { if (_binding != null) Toast.makeText(context, "Volunteer Requested", Toast.LENGTH_SHORT).show() }
+            .addOnFailureListener { if (_binding != null) Toast.makeText(context, "Failed", Toast.LENGTH_SHORT).show() }
+    }
+
     private fun showUpdateConfirmationDialog(order: Order, newStatus: String) {
         AlertDialog.Builder(requireContext())
             .setTitle("Confirm Action")
-            .setMessage("Are you sure you want to change this order's status to '$newStatus'?")
+            .setMessage("Change status to '$newStatus'?")
             .setPositiveButton("Confirm") { _, _ -> updateOrderStatus(order, newStatus) }
             .setNegativeButton("Cancel", null)
             .show()
@@ -106,49 +97,30 @@ class SellerOrdersFragment : Fragment() {
 
     private fun updateOrderStatus(order: Order, newStatus: String) {
         if (order.orderId == null) return
-
         if (order.status != Order.STATUS_REJECTED && newStatus == Order.STATUS_REJECTED) {
             incrementStockForOrder(order)
         }
-
         database.child(order.orderId).child("status").setValue(newStatus)
-            .addOnSuccessListener {
-                if (_binding == null) return@addOnSuccessListener
-                Toast.makeText(context?.applicationContext, "Order updated to $newStatus", Toast.LENGTH_SHORT).show()
-            }
-            .addOnFailureListener {
-                if (_binding == null) return@addOnFailureListener
-                Toast.makeText(context?.applicationContext, "Failed: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
+            .addOnSuccessListener { if (_binding != null) Toast.makeText(context, "Updated", Toast.LENGTH_SHORT).show() }
     }
 
     private fun incrementStockForOrder(order: Order) {
         val productsRef = FirebaseDatabase.getInstance().getReference("Products")
-
         order.items?.forEach { (productId, cartItem) ->
-            val quantityToRestore = cartItem.quantityInCart
-            val productQuantityRef = productsRef.child(productId).child("quantity")
-
-            productQuantityRef.runTransaction(object : Transaction.Handler {
+            productsRef.child(productId).child("quantity").runTransaction(object : Transaction.Handler {
                 override fun doTransaction(currentData: MutableData): Transaction.Result {
                     val currentQuantity = currentData.getValue(Int::class.java) ?: return Transaction.success(currentData)
-                    currentData.value = currentQuantity + quantityToRestore
+                    currentData.value = currentQuantity + cartItem.quantityInCart
                     return Transaction.success(currentData)
                 }
-                override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
-                    if (error != null) Log.e("SellerOrders", "Stock restore failed for $productId")
-                }
+                override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {}
             })
         }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        ordersListener?.let { listener ->
-            ordersQuery?.removeEventListener(listener)
-        }
-        ordersQuery = null
-        ordersListener = null
+        ordersListener?.let { ordersQuery?.removeEventListener(it) }
         _binding = null
     }
 }
