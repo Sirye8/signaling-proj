@@ -35,7 +35,7 @@ class DeliveryOrderAdapter(
         with(holder.binding) {
             shopNameTextView.text = order.sellerName
             orderIdTextView.text = "Order ID: ...${order.orderId?.takeLast(6)}"
-            feeTextView.text = String.format(Locale.US, "Earn $%.2f", order.deliveryFee)
+            feeTextView.text = String.format(Locale.US, "Earn EGP%.2f", order.deliveryFee)
 
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
             addressTextView.text = order.deliveryAddress
@@ -45,7 +45,7 @@ class DeliveryOrderAdapter(
 
             if (order.paymentMethod == Order.PAY_CASH) {
                 paymentStatusTextView.visibility = View.VISIBLE
-                paymentStatusTextView.text = String.format(Locale.US, "Collect Cash: $%.2f", order.finalPrice)
+                paymentStatusTextView.text = String.format(Locale.US, "Collect Cash: EGP%.2f", order.finalPrice)
                 paymentStatusTextView.backgroundTintList = ColorStateList.valueOf(context.getColor(R.color.md_theme_errorContainer))
                 paymentStatusTextView.setTextColor(context.getColor(R.color.md_theme_onErrorContainer))
             } else {

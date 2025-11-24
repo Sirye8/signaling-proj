@@ -108,7 +108,7 @@ class PayActivity : AppCompatActivity() {
                 if (isDestroyed || isFinishing) return
                 val user = snapshot.getValue(User::class.java)
                 val credit = user?.credit ?: 0.0
-                binding.creditBalanceText.text = String.format(Locale.US, "$%.2f", credit)
+                binding.creditBalanceText.text = String.format(Locale.US, "EGP%.2f", credit)
             }
             override fun onCancelled(error: DatabaseError) {}
         })

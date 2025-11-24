@@ -49,12 +49,12 @@ class CartFragment : Fragment() {
     private var availableCredit: Double = 0.0
     private var calculatedDeliveryFee: Double = 0.0
 
-    private val FEE_HIGH = 15.0
-    private val FEE_MED = 10.0
-    private val FEE_LOW = 5.0
-    private val THRESHOLD_SMALL = 30.0
-    private val THRESHOLD_MEDIUM = 70.0
-    private val THRESHOLD_LARGE = 150.0
+    private val FEE_HIGH = 35.0
+    private val FEE_MED = 25.0
+    private val FEE_LOW = 10.0
+    private val THRESHOLD_SMALL = 150.0
+    private val THRESHOLD_MEDIUM = 250.0
+    private val THRESHOLD_LARGE = 350.0
 
     // Address Result
     private val addressResultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -142,7 +142,7 @@ class CartFragment : Fragment() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 availableCredit = snapshot.getValue(Double::class.java) ?: 0.0
                 if (_binding != null) {
-                    binding.useCreditSwitch.text = String.format(Locale.US, "Use Delivery Credit ($%.2f)", availableCredit)
+                    binding.useCreditSwitch.text = String.format(Locale.US, "Use Delivery Credit (EGP%.2f)", availableCredit)
                     binding.useCreditSwitch.isEnabled = availableCredit > 0
                     recalculateTotals()
                 }
@@ -342,7 +342,7 @@ class CartFragment : Fragment() {
                 binding.deliveryFeeTextView.text = "FREE"
                 binding.deliveryFeeTextView.setTextColor(requireContext().getColor(android.R.color.holo_green_dark))
             } else {
-                binding.deliveryFeeTextView.text = String.format(Locale.US, "$%.2f", calculatedDeliveryFee)
+                binding.deliveryFeeTextView.text = String.format(Locale.US, "EGP%.2f", calculatedDeliveryFee)
                 binding.deliveryFeeTextView.setTextColor(binding.totalPriceTextView.currentTextColor)
             }
         } else {
@@ -356,14 +356,14 @@ class CartFragment : Fragment() {
         if (binding.useCreditSwitch.isChecked) {
             discount = min(totalBeforeDiscount, availableCredit)
             binding.discountLayout.visibility = View.VISIBLE
-            binding.discountTextView.text = String.format(Locale.US, "-$%.2f", discount)
+            binding.discountTextView.text = String.format(Locale.US, "-EGP%.2f", discount)
         } else {
             binding.discountLayout.visibility = View.GONE
         }
 
         val finalTotal = totalBeforeDiscount - discount
-        binding.subtotalTextView.text = String.format(Locale.US, "$%.2f", subtotal)
-        binding.totalPriceTextView.text = String.format(Locale.US, "$%.2f", finalTotal)
+        binding.subtotalTextView.text = String.format(Locale.US, "EGP%.2f", subtotal)
+        binding.totalPriceTextView.text = String.format(Locale.US, "EGP%.2f", finalTotal)
     }
 
     private fun setupRecyclerView() {

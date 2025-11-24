@@ -34,7 +34,7 @@ class ShopProductAdapter(
 
         with(holder.binding) {
             productName.text = product.name
-            productPrice.text = String.format(Locale.US, "$%.2f", product.price ?: 0.0)
+            productPrice.text = String.format(Locale.US, "EGP%.2f", product.price ?: 0.0)
 
             Glide.with(context)
                 .load(product.photoUrl)

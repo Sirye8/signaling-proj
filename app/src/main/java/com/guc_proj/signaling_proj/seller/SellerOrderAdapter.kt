@@ -38,7 +38,7 @@ class SellerOrderAdapter(
 
         with(holder.binding) {
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
-            totalPriceTextView.text = String.format(Locale.US, "$%.2f", order.totalPrice)
+            totalPriceTextView.text = String.format(Locale.US, "EGP%.2f", order.totalPrice)
 
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
             dateTextView.text = sdf.format(Date(order.timestamp))
@@ -77,7 +77,7 @@ class SellerOrderAdapter(
                     itemView.findViewById<TextView>(R.id.itemQty).text = "${cartItem.quantityInCart}x"
                     itemView.findViewById<TextView>(R.id.itemName).text = product.name
                     val itemTotal = (product.price ?: 0.0) * cartItem.quantityInCart
-                    itemView.findViewById<TextView>(R.id.itemPrice).text = String.format(Locale.US, "$%.2f", itemTotal)
+                    itemView.findViewById<TextView>(R.id.itemPrice).text = String.format(Locale.US, "EGP%.2f", itemTotal)
                     Glide.with(context).load(product.photoUrl).placeholder(R.drawable.ic_launcher_foreground).into(itemView.findViewById(R.id.itemThumb))
                     itemsContainer.addView(itemView)
                 }
@@ -134,11 +134,16 @@ class SellerOrderAdapter(
                         setDeliveredButton.text = "Mark Picked Up"
                         setDeliveredButton.setOnClickListener { onActionClick(order, Order.STATUS_COMPLETED) }
                     } else {
-                        // Delivery Flow: Seller can still click "Dispatch" to do it themselves
                         setOutForDeliveryButton.visibility = View.VISIBLE
                         setOutForDeliveryButton.text = "Dispatch"
+                        if (order.isVolunteerRequested) {
+                            setOutForDeliveryButton.isEnabled = false
+                            setOutForDeliveryButton.alpha = 0.5f
+                        } else {
+                            setOutForDeliveryButton.isEnabled = true
+                            setOutForDeliveryButton.alpha = 1.0f
+                        }
                         setOutForDeliveryButton.setOnClickListener { onActionClick(order, Order.STATUS_OUT_FOR_DELIVERY) }
-
                         setDeliveredButton.visibility = View.GONE
                     }
                 }

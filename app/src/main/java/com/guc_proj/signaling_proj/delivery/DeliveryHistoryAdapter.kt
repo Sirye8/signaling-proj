@@ -34,7 +34,7 @@ class DeliveryHistoryAdapter(
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
             dateTextView.text = sdf.format(Date(order.timestamp))
 
-            feeTextView.text = String.format(Locale.US, "+$%.2f", order.deliveryFee)
+            feeTextView.text = String.format(Locale.US, "+EGP%.2f", order.deliveryFee)
 
             buyerNameTextView.text = order.buyerName ?: "Unknown Buyer"
             addressTextView.text = order.deliveryAddress ?: "No address"

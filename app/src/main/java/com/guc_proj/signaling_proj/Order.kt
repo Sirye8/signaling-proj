@@ -1,6 +1,7 @@
 package com.guc_proj.signaling_proj
 
 import android.os.Parcelable
+import com.google.firebase.database.PropertyName
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
@@ -26,6 +27,8 @@ data class Order(
     val finalPrice: Double = 0.0, // Amount actually paid
 
     // New Flag for Volunteer Logic
+    // Fix: Force Firebase to use "isVolunteerRequested" exactly
+    @get:PropertyName("isVolunteerRequested")
     val isVolunteerRequested: Boolean = false,
 
     // Order Date

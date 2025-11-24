@@ -133,7 +133,7 @@ class DeliveryOrdersFragment : Fragment() {
                     }
                     override fun onComplete(error: DatabaseError?, committed: Boolean, snapshot: DataSnapshot?) {
                         if (committed) {
-                            Toast.makeText(context, "Delivered! Earned $${fee}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Delivered! Earned EGP${fee}", Toast.LENGTH_LONG).show()
                         }
                     }
                 })

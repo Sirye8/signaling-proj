@@ -78,7 +78,7 @@ class DeliveryHistoryFragment : Fragment() {
                 historyList.reverse()
                 historyAdapter.updateList(historyList)
 
-                binding.totalEarningsText.text = String.format(Locale.US, "$%.2f", totalEarnings)
+                binding.totalEarningsText.text = String.format(Locale.US, "EGP%.2f", totalEarnings)
                 binding.totalJobsText.text = "${historyList.size} Jobs Completed"
 
                 binding.loadingIndicator.visibility = View.GONE

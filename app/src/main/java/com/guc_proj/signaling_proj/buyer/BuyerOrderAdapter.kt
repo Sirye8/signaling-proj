@@ -36,9 +36,8 @@ class BuyerOrderAdapter(
 
         with(holder.binding) {
             sellerNameTextView.text = order.sellerName ?: "Unknown Shop"
-            // Use finalPrice if available, otherwise fallback to totalPrice
             val displayPrice = order.finalPrice
-            totalPriceTextView.text = String.format(Locale.US, "$%.2f", displayPrice)
+            totalPriceTextView.text = String.format(Locale.US, "EGP%.2f", displayPrice)
 
             val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
             dateTextView.text = sdf.format(Date(order.timestamp))
@@ -78,7 +77,7 @@ class BuyerOrderAdapter(
             }
 
             if (order.deliveryType == Order.TYPE_DELIVERY) {
-                deliveryInfoTextView.text = String.format(Locale.US, "Delivery ($%.2f)", order.deliveryFee)
+                deliveryInfoTextView.text = String.format(Locale.US, "Delivery (EGP%.2f)", order.deliveryFee)
                 addressTextView.visibility = View.VISIBLE
                 addressTextView.text = order.deliveryAddress ?: "Address info unavailable"
             } else {
@@ -90,7 +89,7 @@ class BuyerOrderAdapter(
             paymentMethodTextView.text = "Method: ${order.paymentMethod}"
             if (order.discountApplied > 0) {
                 discountTextView.visibility = View.VISIBLE
-                discountTextView.text = String.format(Locale.US, "Discount: -$%.2f", order.discountApplied)
+                discountTextView.text = String.format(Locale.US, "Discount: -EGP%.2f", order.discountApplied)
             } else {
                 discountTextView.visibility = View.GONE
             }
@@ -108,7 +107,7 @@ class BuyerOrderAdapter(
                     name.text = product.name
                     qty.text = "${cartItem.quantityInCart}x"
                     val itemTotal = (product.price ?: 0.0) * cartItem.quantityInCart
-                    price.text = String.format(Locale.US, "$%.2f", itemTotal)
+                    price.text = String.format(Locale.US, "EGP%.2f", itemTotal)
 
                     Glide.with(context)
                         .load(product.photoUrl)

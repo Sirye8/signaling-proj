@@ -73,7 +73,7 @@ class ShopProductsActivity : AppCompatActivity() {
         if (count > 0) {
             binding.cartBarCard.visibility = View.VISIBLE
             binding.cartTotalItemsText.text = "$count items"
-            binding.cartTotalPriceText.text = String.format(Locale.US, "Total: $%.2f", CartManager.getCartTotal())
+            binding.cartTotalPriceText.text = String.format(Locale.US, "Total: EGP%.2f", CartManager.getCartTotal())
         } else {
             binding.cartBarCard.visibility = View.GONE
         }

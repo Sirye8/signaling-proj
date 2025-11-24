@@ -33,7 +33,7 @@ class CartAdapter(
 
         with(holder.binding) {
             productName.text = product?.name ?: "Unknown Item"
-            productPrice.text = String.format(Locale.US, "$%.2f", product?.price ?: 0.0)
+            productPrice.text = String.format(Locale.US, "EGP%.2f", product?.price ?: 0.0)
             quantityTextView.text = cartItem.quantityInCart.toString()
 
             Glide.with(root.context)
