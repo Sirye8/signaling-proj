@@ -1,6 +1,5 @@
 package com.guc_proj.signaling_proj.buyer
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -13,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.CardFormActivity
@@ -131,10 +131,11 @@ class PayActivity : AppCompatActivity() {
     }
 
     private fun deleteCard(card: PaymentCard) {
-        AlertDialog.Builder(this)
-            .setTitle("Delete Card")
-            .setMessage("Are you sure?")
-            .setPositiveButton("Delete") { _, _ ->
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Remove Card")
+            .setMessage("Are you sure you want to remove this payment method?")
+            .setIcon(R.drawable.ic_delete)
+            .setPositiveButton("Remove") { _, _ ->
                 card.cardId?.let {
                     database.child("Cards").child(it).removeValue()
                     Toast.makeText(this, "Card removed", Toast.LENGTH_SHORT).show()

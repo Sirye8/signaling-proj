@@ -9,7 +9,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.amazonaws.AmazonClientException
 import com.amazonaws.AmazonServiceException
@@ -23,6 +22,12 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.CannedAccessControlList
 import com.amazonaws.services.s3.model.ListObjectsRequest
 import com.bumptech.glide.Glide
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+import android.text.InputType
+import android.widget.FrameLayout
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.buyer.PayActivity
@@ -301,12 +306,63 @@ class ProfileFragment : Fragment() {
     }
 
     private fun showDeleteConfirmationDialog() {
-        AlertDialog.Builder(requireContext())
+        val context = requireContext()
+
+        // Create a container with margins for the input
+        val container = FrameLayout(context)
+        val params = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        params.setMargins(50, 20, 50, 20) // Add side padding
+
+        // Create TextInputLayout for Material styling
+        val textInputLayout = TextInputLayout(context)
+        textInputLayout.hint = "Password"
+        textInputLayout.boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+        textInputLayout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE) // Show/Hide eye icon
+        textInputLayout.layoutParams = params
+
+        // Create the EditText
+        val passwordInput = TextInputEditText(context)
+        passwordInput.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+
+        textInputLayout.addView(passwordInput)
+        container.addView(textInputLayout)
+
+        MaterialAlertDialogBuilder(context)
             .setTitle("Delete Account")
             .setMessage("Are you sure you want to permanently delete your account? This action cannot be undone.")
-            .setPositiveButton("Delete") { _, _ -> deleteUserAccount() }
+            .setIcon(R.drawable.ic_delete) // Uses your existing delete icon
+            .setView(container)
+            .setPositiveButton("Delete") { _, _ ->
+                val password = passwordInput.text.toString()
+                if (password.isNotEmpty()) {
+                    reauthenticateAndDelete(password)
+                } else {
+                    Toast.makeText(context, "Password is required.", Toast.LENGTH_SHORT).show()
+                }
+            }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun reauthenticateAndDelete(password: String) {
+        val user = auth.currentUser
+        if (user == null || user.email == null) return
+
+        // Create credentials from the current email and entered password
+        val credential = EmailAuthProvider.getCredential(user.email!!, password)
+
+        // Prompt Firebase to refresh the security token
+        user.reauthenticate(credential).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                // Auth successful, token is fresh. Now safe to delete.
+                deleteUserAccount()
+            } else {
+                Toast.makeText(context, "Incorrect password. Deletion cancelled.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun deleteUserAccount() {

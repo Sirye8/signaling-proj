@@ -9,10 +9,10 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.databinding.ActivityAddressesBinding
@@ -125,9 +125,13 @@ class AddressesActivity : AppCompatActivity() {
     }
 
     private fun showDeleteDialog(key: String) {
-        AlertDialog.Builder(this).setTitle("Delete Address").setMessage("Are you sure?")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Delete Address")
+            .setMessage("Are you sure you want to remove this address?")
+            .setIcon(R.drawable.ic_delete)
             .setPositiveButton("Delete") { _, _ -> database.child(key).removeValue() }
-            .setNegativeButton("Cancel", null).show()
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     class AddressAdapter(

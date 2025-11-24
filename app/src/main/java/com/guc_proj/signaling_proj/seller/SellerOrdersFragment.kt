@@ -1,16 +1,16 @@
 package com.guc_proj.signaling_proj.seller
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.guc_proj.signaling_proj.R
 import com.guc_proj.signaling_proj.Order
 import com.guc_proj.signaling_proj.databinding.FragmentSellerOrdersBinding
 
@@ -87,9 +87,10 @@ class SellerOrdersFragment : Fragment() {
     }
 
     private fun showUpdateConfirmationDialog(order: Order, newStatus: String) {
-        AlertDialog.Builder(requireContext())
-            .setTitle("Confirm Action")
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Update Order Status")
             .setMessage("Change status to '$newStatus'?")
+            .setIcon(R.drawable.baseline_fastfood_24) // Uses your food icon
             .setPositiveButton("Confirm") { _, _ -> updateOrderStatus(order, newStatus) }
             .setNegativeButton("Cancel", null)
             .show()

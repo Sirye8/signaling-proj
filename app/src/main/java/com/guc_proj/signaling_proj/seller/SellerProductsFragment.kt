@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.viewpager2.widget.ViewPager2
@@ -15,6 +14,7 @@ import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.regions.Region
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import com.guc_proj.signaling_proj.BuildConfig
@@ -83,9 +83,10 @@ class SellerProductsFragment : Fragment() {
 
     private fun showAddressRequiredDialog() {
         if (context == null) return
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Address Required")
             .setMessage("You must add a shop address in your Profile before you can add products.")
+            .setIcon(R.drawable.baseline_add_home_24)
             .setPositiveButton("Go to Profile") { _, _ ->
                 (activity as? SellerHomeActivity)?.let {
                     val viewPager = it.findViewById<ViewPager2>(R.id.seller_view_pager)
@@ -137,7 +138,13 @@ class SellerProductsFragment : Fragment() {
     }
 
     private fun showDeleteConfirmationDialog(product: Product) {
-        AlertDialog.Builder(requireContext()).setTitle("Delete Product").setMessage("Are you sure?").setPositiveButton("Delete") { _, _ -> deleteProduct(product) }.setNegativeButton("Cancel", null).show()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Delete Product")
+            .setMessage("Are you sure you want to delete '${product.name}'?")
+            .setIcon(R.drawable.ic_delete)
+            .setPositiveButton("Delete") { _, _ -> deleteProduct(product) }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun deleteProduct(product: Product) {
