@@ -2,15 +2,12 @@ package com.guc_proj.signaling_proj
 
 import android.Manifest
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
-import android.os.IBinder
 import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
@@ -31,7 +28,6 @@ class VoIPFragment : Fragment() {
     private val binding get() = _binding!!
 
     private var appService: AppService? = null
-    private var isBound = false
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val uiRunnable = object : Runnable {
@@ -42,22 +38,7 @@ class VoIPFragment : Fragment() {
     }
 
     private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) startServiceInit()
-    }
-
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as AppService.LocalBinder
-            appService = binder.getService()
-            isBound = true
-            appService?.isUiVisible = true
-            // Initial update upon binding
-            binding.root.post { updateUI() }
-        }
-        override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
-            appService = null
-        }
+        if (isGranted) connectToService()
     }
 
     private val updateReceiver = object : BroadcastReceiver() {
@@ -78,7 +59,7 @@ class VoIPFragment : Fragment() {
 
         checkPermissions()
         displayLocalIp()
-        startServiceInit()
+        connectToService()
 
         binding.startCallButton.setOnClickListener {
             if (appService?.currentState == AppService.CallState.IDLE) {
@@ -115,13 +96,21 @@ class VoIPFragment : Fragment() {
         }
     }
 
-    private fun startServiceInit() {
-        val intent = Intent(requireContext(), AppService::class.java).apply {
-            action = AppService.ACTION_INIT
-            putExtra(AppService.EXTRA_PORT, 5000)
+    private fun connectToService() {
+        val callback: (AppService?) -> Unit = { service ->
+            // Safely check if service is not null before using it
+            if (service != null) {
+                this.appService = service
+                service.isUiVisible = true
+
+                // Ensure the fragment is still valid before updating UI
+                if (isAdded && _binding != null) {
+                    updateUI()
+                }
+            }
         }
-        requireContext().startService(intent)
-        requireContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        (activity as? SellerHomeActivity)?.getService(callback)
+        (activity as? BuyerHomeActivity)?.getService(callback)
     }
 
     private fun updateUI() {
@@ -233,7 +222,9 @@ class VoIPFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        appService?.isUiVisible = true
+
+        // Re-connect to service to ensure we have the latest instance/state
+        connectToService()
 
         ContextCompat.registerReceiver(
             requireContext(),
@@ -241,13 +232,6 @@ class VoIPFragment : Fragment() {
             IntentFilter(AppService.BROADCAST_UPDATE),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
-
-        // Ensure UI update runs after view is fully ready
-        binding.root.post {
-            if (isBound && appService != null) {
-                updateUI()
-            }
-        }
     }
 
     override fun onPause() {
@@ -258,11 +242,6 @@ class VoIPFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        if (isBound) {
-            appService?.isUiVisible = false
-            requireContext().unbindService(connection)
-            isBound = false
-        }
         uiHandler.removeCallbacks(uiRunnable)
         _binding = null
     }

@@ -1,10 +1,14 @@
 package com.guc_proj.signaling_proj
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -16,6 +20,7 @@ import com.guc_proj.signaling_proj.buyer.BuyerOrdersFragment
 import com.guc_proj.signaling_proj.buyer.CartFragment
 import com.guc_proj.signaling_proj.buyer.ShopsFragment
 import com.guc_proj.signaling_proj.databinding.ActivityBuyerHomeBinding
+import com.guc_proj.signaling_proj.services.AppService
 
 class BuyerHomeActivity : AppCompatActivity() {
 
@@ -23,6 +28,33 @@ class BuyerHomeActivity : AppCompatActivity() {
     private lateinit var viewPager: ViewPager2
     private lateinit var pagerAdapter: BuyerPageAdapter
 
+    // --- Service Binding Logic ---
+    private var appService: AppService? = null
+    private var isBound = false
+    private val serviceListeners = mutableListOf<(AppService) -> Unit>()
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as AppService.LocalBinder
+            appService = binder.getService()
+            isBound = true
+            serviceListeners.forEach { it(appService!!) }
+            serviceListeners.clear()
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            isBound = false
+            appService = null
+        }
+    }
+
+    fun getService(listener: (AppService) -> Unit) {
+        if (appService != null && isBound) {
+            listener(appService!!)
+        } else {
+            serviceListeners.add(listener)
+        }
+    }
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean -> }
@@ -31,6 +63,10 @@ class BuyerHomeActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityBuyerHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Bind to AppService
+        val serviceIntent = Intent(this, AppService::class.java)
+        bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
 
         checkNotificationPermission()
 
@@ -59,6 +95,14 @@ class BuyerHomeActivity : AppCompatActivity() {
         }
 
         handleNavigationIntent(intent)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isBound) {
+            unbindService(connection)
+            isBound = false
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {

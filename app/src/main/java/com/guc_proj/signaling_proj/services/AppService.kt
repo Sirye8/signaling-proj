@@ -149,16 +149,14 @@ class AppService : Service() {
     private fun startStandbyForeground() {
         val notification = NotificationCompat.Builder(this, CHANNEL_APP_STATUS)
             .setContentTitle("Signaling App")
-            .setContentText("Running in background") // Generic text as requested
+            .setContentText("Running in background")
             .setSmallIcon(R.drawable.baseline_fastfood_24)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Combine types: microphone (for calls) + dataSync (for orders)
-            startForeground(NOTIF_ID, notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } else {
             startForeground(NOTIF_ID, notification)
         }
@@ -172,7 +170,13 @@ class AppService : Service() {
         val notification = notificationHelper.getCallNotification(
             callerName, ip, callStartTime, endIntent, speakerIntent, audioManager.isSpeakerphoneOn
         )
-        startForeground(NOTIF_ID, notification)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(NOTIF_ID, notification)
+        }
     }
 
     // --- Service Commands ---
@@ -500,13 +504,23 @@ class AppService : Service() {
     }
 
     private fun startAudioSession() {
+        // Check for permission before attempting to start audio/notification
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            updateStatus("Audio Permission Missing")
+            resetToIdle("Call Failed")
+            return
+        }
+
         currentState = CallState.CONNECTED
         callStartTime = System.currentTimeMillis()
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.isSpeakerphoneOn = true
         updateStatus("Connected")
         broadcastUpdate()
-        startCallNotification() // Active Call Notification
+
+        // Now safe to upgrade foreground type to MICROPHONE
+        startCallNotification()
+
         serviceScope.launch { recordAndSendAudio() }
     }
 
@@ -545,7 +559,7 @@ class AppService : Service() {
         stopRingtone()
         notificationHelper.cancelIncomingCallNotification()
 
-        startStandbyForeground() // Revert to Generic "Running in background"
+        startStandbyForeground() // Downgrade back to DATA_SYNC only
 
         try {
             audioManager.mode = AudioManager.MODE_NORMAL
