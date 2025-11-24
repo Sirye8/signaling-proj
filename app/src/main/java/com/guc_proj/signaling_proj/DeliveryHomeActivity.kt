@@ -1,10 +1,14 @@
 package com.guc_proj.signaling_proj
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -15,12 +19,43 @@ import androidx.viewpager2.widget.ViewPager2
 import com.guc_proj.signaling_proj.databinding.ActivityDeliveryHomeBinding
 import com.guc_proj.signaling_proj.delivery.DeliveryHistoryFragment
 import com.guc_proj.signaling_proj.delivery.DeliveryOrdersFragment
+import com.guc_proj.signaling_proj.services.AppService
 
 class DeliveryHomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDeliveryHomeBinding
     private lateinit var viewPager: ViewPager2
     private lateinit var pagerAdapter: DeliveryPageAdapter
+
+    // --- Service Binding Logic ---
+    private var appService: AppService? = null
+    private var isBound = false
+    private val serviceListeners = mutableListOf<(AppService) -> Unit>()
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as AppService.LocalBinder
+            appService = binder.getService()
+            isBound = true
+            // Notify any fragments waiting for the service
+            serviceListeners.forEach { it(appService!!) }
+            serviceListeners.clear()
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            isBound = false
+            appService = null
+        }
+    }
+
+    // Helper method for Fragments to get the service instance
+    fun getService(listener: (AppService) -> Unit) {
+        if (appService != null && isBound) {
+            listener(appService!!)
+        } else {
+            serviceListeners.add(listener)
+        }
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -30,6 +65,10 @@ class DeliveryHomeActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityDeliveryHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Bind to AppService immediately (ADDED)
+        val serviceIntent = Intent(this, AppService::class.java)
+        bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -57,6 +96,15 @@ class DeliveryHomeActivity : AppCompatActivity() {
         }
 
         handleNavigationIntent(intent)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Unbind service to prevent leaks (ADDED)
+        if (isBound) {
+            unbindService(connection)
+            isBound = false
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {

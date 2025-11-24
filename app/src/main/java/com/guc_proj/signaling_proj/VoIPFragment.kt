@@ -111,6 +111,8 @@ class VoIPFragment : Fragment() {
         }
         (activity as? SellerHomeActivity)?.getService(callback)
         (activity as? BuyerHomeActivity)?.getService(callback)
+        // Added check for DeliveryHomeActivity
+        (activity as? DeliveryHomeActivity)?.getService(callback)
     }
 
     private fun updateUI() {
