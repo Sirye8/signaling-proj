@@ -64,7 +64,8 @@ class VoIPFragment : Fragment() {
         binding.startCallButton.setOnClickListener {
             if (appService?.currentState == AppService.CallState.IDLE) {
                 val ip = binding.ipEditText.text.toString()
-                val port = binding.portEditText.text.toString().toIntOrNull() ?: 5000
+                // Default to 5060 for SIP
+                val port = binding.portEditText.text.toString().toIntOrNull() ?: 5060
 
                 val intent = Intent(requireContext(), AppService::class.java).apply {
                     action = AppService.ACTION_START_CALL
@@ -98,12 +99,9 @@ class VoIPFragment : Fragment() {
 
     private fun connectToService() {
         val callback: (AppService?) -> Unit = { service ->
-            // Safely check if service is not null before using it
             if (service != null) {
                 this.appService = service
                 service.isUiVisible = true
-
-                // Ensure the fragment is still valid before updating UI
                 if (isAdded && _binding != null) {
                     updateUI()
                 }
@@ -111,12 +109,10 @@ class VoIPFragment : Fragment() {
         }
         (activity as? SellerHomeActivity)?.getService(callback)
         (activity as? BuyerHomeActivity)?.getService(callback)
-        // Added check for DeliveryHomeActivity
         (activity as? DeliveryHomeActivity)?.getService(callback)
     }
 
     private fun updateUI() {
-        // Critical Safety Check: Stop if not fully attached/bound
         if (!isAdded || _binding == null || context == null || appService == null) return
 
         val service = appService!!
@@ -138,7 +134,6 @@ class VoIPFragment : Fragment() {
 
             if (service.currentState == AppService.CallState.CONNECTED) {
                 binding.timerTextView.visibility = View.VISIBLE
-                // Fix for API < 29 compatibility
                 uiHandler.removeCallbacks(uiRunnable)
                 uiHandler.post(uiRunnable)
             }
@@ -172,8 +167,6 @@ class VoIPFragment : Fragment() {
             binding.scanningLayout.visibility = View.VISIBLE
         } else {
             binding.scanningLayout.visibility = View.GONE
-
-            // FIX: Use requireContext() for the inflater for maximum stability
             val inflater = LayoutInflater.from(requireContext())
 
             for ((ip, info) in peersSnapshot) {
@@ -224,10 +217,7 @@ class VoIPFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-
-        // Re-connect to service to ensure we have the latest instance/state
         connectToService()
-
         ContextCompat.registerReceiver(
             requireContext(),
             updateReceiver,
