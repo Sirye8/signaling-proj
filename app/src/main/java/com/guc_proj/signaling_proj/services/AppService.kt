@@ -59,19 +59,16 @@ class AppService : Service() {
         private set
     var isUiVisible: Boolean = false
 
-    // --- SOCKETS (Separated) ---
+    // --- SOCKETS (SPLIT FOR SIP/RTP) ---
     private var sipSocket: DatagramSocket? = null
     private var rtpSocket: DatagramSocket? = null
     private var discoverySocket: DatagramSocket? = null
 
     private var targetIpAddress: InetAddress? = null
-
-    // SIP uses 5060, RTP uses 5004
-    private var mySipPort: Int = 5060
-    private val myRtpPort: Int = 5004
-
     private var targetSipPort: Int = 5060
-    private val targetRtpPort: Int = 5004
+
+    private var myListeningPort: Int = 5060 // SIP Port
+    private val myRtpPort: Int = 5004     // Standard RTP Port
 
     private var isListening = false
     private var isDiscoveryActive = false
@@ -146,6 +143,7 @@ class AppService : Service() {
         fetchMyInfoAndStartListeners()
     }
 
+    // --- Notification Channel ---
     private fun createStatusChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -160,11 +158,11 @@ class AppService : Service() {
         }
     }
 
-    // --- Unified Foreground Management ---
+    // --- Unified Foreground Management (RESTORED FROM ORIGINAL) ---
     private fun startStandbyForeground() {
         val notification = NotificationCompat.Builder(this, CHANNEL_APP_STATUS)
             .setContentTitle("Signaling App")
-            .setContentText("Running in background (SIP: $mySipPort, RTP: $myRtpPort)")
+            .setContentText("Running in background")
             .setSmallIcon(R.drawable.baseline_fastfood_24)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setVisibility(NotificationCompat.VISIBILITY_SECRET)
@@ -198,9 +196,9 @@ class AppService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_INIT -> {
-                val port = intent.getIntExtra(EXTRA_PORT, 5060)
-                initSockets(port) // Initialize both SIP and RTP sockets
                 startStandbyForeground()
+                val port = intent.getIntExtra(EXTRA_PORT, 5060)
+                initSockets(port)
                 startDiscovery()
             }
             ACTION_START_CALL -> {
@@ -232,7 +230,7 @@ class AppService : Service() {
         })
     }
 
-    // --- Order Notification Logic ---
+    // --- Order Notification Logic (RESTORED FROM ORIGINAL) ---
     private fun startOrderListeners(uid: String, role: String) {
         removeOrderListeners()
         if (role == "Seller") {
@@ -240,28 +238,59 @@ class AppService : Service() {
             myOrdersListener = myOrdersRef?.addChildEventListener(object : ChildEventListener {
                 override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
                     val order = snapshot.getValue(Order::class.java) ?: return
-                    if (order.status == Order.STATUS_PENDING) notificationHelper.showNotification("New Order", "New order from ${order.buyerName}", "ORDER", role)
+                    if (order.status == Order.STATUS_PENDING) {
+                        notificationHelper.showNotification("New Order", "New order from ${order.buyerName}", "ORDER", role)
+                    }
                 }
-                override fun onChildChanged(snapshot: DataSnapshot, p: String?) {}
+                override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {
+                    val order = snapshot.getValue(Order::class.java) ?: return
+                    if (order.status == Order.STATUS_OUT_FOR_DELIVERY) {
+                        notificationHelper.showNotification("Order Dispatched", "Order for ${order.buyerName} picked up.", "ORDER", role)
+                    } else if (order.status == Order.STATUS_DELIVERED) {
+                        notificationHelper.showNotification("Order Delivered", "Order for ${order.buyerName} delivered.", "ORDER", role)
+                    }
+                }
                 override fun onChildRemoved(snapshot: DataSnapshot) {}
-                override fun onChildMoved(snapshot: DataSnapshot, p: String?) {}
+                override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {}
                 override fun onCancelled(error: DatabaseError) {}
             })
         } else {
             myOrdersRef = database.orderByChild("buyerId").equalTo(uid)
             myOrdersListener = myOrdersRef?.addChildEventListener(object : ChildEventListener {
-                override fun onChildAdded(snapshot: DataSnapshot, p: String?) {}
+                override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {}
                 override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {
                     val order = snapshot.getValue(Order::class.java) ?: return
-                    val msg = when (order.status) {
+                    val status = order.status
+                    val shopName = order.sellerName ?: "Shop"
+                    val msg = when (status) {
                         Order.STATUS_ACCEPTED -> "Your order is accepted."
+                        Order.STATUS_PREPARING -> "Your order is being prepared."
+                        Order.STATUS_READY_FOR_PICKUP -> if(order.deliveryType == Order.TYPE_PICKUP) "Ready for pickup!" else null
+                        Order.STATUS_OUT_FOR_DELIVERY -> "Your order is out for delivery."
                         Order.STATUS_DELIVERED -> "Your order has arrived!"
+                        Order.STATUS_REJECTED -> "Your order was cancelled."
                         else -> null
                     }
-                    if (msg != null) notificationHelper.showNotification("Order Update", msg, "ORDER", role)
+                    if (msg != null) notificationHelper.showNotification("Order Update ($shopName)", msg, "ORDER", role)
                 }
                 override fun onChildRemoved(snapshot: DataSnapshot) {}
-                override fun onChildMoved(snapshot: DataSnapshot, p: String?) {}
+                override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {}
+                override fun onCancelled(error: DatabaseError) {}
+            })
+
+            availableJobsRef = database.orderByChild("status").equalTo(Order.STATUS_READY_FOR_PICKUP)
+            availableJobsListener = availableJobsRef?.addChildEventListener(object : ChildEventListener {
+                override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
+                    val order = snapshot.getValue(Order::class.java) ?: return
+                    if (order.deliveryType == Order.TYPE_DELIVERY &&
+                        order.deliveryPersonId == null &&
+                        order.buyerId != uid) {
+                        notificationHelper.showNotification("Job Available", "Pickup from ${order.sellerName}", "JOB", role)
+                    }
+                }
+                override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {}
+                override fun onChildRemoved(snapshot: DataSnapshot) {}
+                override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {}
                 override fun onCancelled(error: DatabaseError) {}
             })
         }
@@ -272,41 +301,37 @@ class AppService : Service() {
         availableJobsListener?.let { availableJobsRef?.removeEventListener(it) }
     }
 
-    // --- Socket & VoIP Logic ---
+    // --- Socket & VoIP Logic (SPLIT ARCHITECTURE) ---
     private fun initSockets(sipPort: Int) {
-        if (isListening && sipPort == mySipPort) return
-
-        mySipPort = sipPort
-        // myRtpPort is effectively constant 5004
+        if (isListening) return
+        myListeningPort = sipPort
 
         serviceScope.launch {
             try {
-                // Close existing
+                // 1. Setup SIP Socket (Signaling)
                 sipSocket?.close()
-                rtpSocket?.close()
-
-                // Initialize Separate Sockets
-                sipSocket = DatagramSocket(mySipPort)
+                sipSocket = DatagramSocket(myListeningPort)
                 sipSocket?.broadcast = true
 
+                // 2. Setup RTP Socket (Audio - Port 5004)
+                rtpSocket?.close()
                 rtpSocket = DatagramSocket(myRtpPort)
-                // RTP socket usually doesn't need broadcast, just point-to-point
+                rtpSocket?.broadcast = true
 
                 isListening = true
-                updateStatus("SIP: $mySipPort | RTP: $myRtpPort")
+                updateStatus("SIP: $myListeningPort | RTP: $myRtpPort")
 
-                // Launch two independent listeners
+                // Launch separate listeners
                 launch { listenForSip() }
                 launch { listenForRtp() }
 
             } catch (e: Exception) {
-                updateStatus("Error binding ports")
-                Log.e("VoIP", "Socket bind error", e)
+                updateStatus("Error Binding Ports")
+                Log.e("VoIP", "Socket Init Error", e)
             }
         }
     }
 
-    // Listener 1: SIP (Signaling) on Port 5060
     private suspend fun listenForSip() {
         val buffer = ByteArray(2048)
         val packet = DatagramPacket(buffer, buffer.size)
@@ -316,17 +341,16 @@ class AppService : Service() {
                 sipSocket!!.receive(packet)
                 val length = packet.length
                 if (length > 0) {
-                    // Always treat port 5060 as Text (SIP)
+                    // Pure SIP Text
                     val msg = String(packet.data, 0, length, Charset.defaultCharset())
                     handleSipSignal(msg, packet.address)
                 }
             } catch (e: Exception) {
-                if (sipSocket != null && !sipSocket!!.isClosed) Log.e("VoIP", "SIP Receive Error", e)
+                if (isListening) Log.e("VoIP", "SIP Receive Error", e)
             }
         }
     }
 
-    // Listener 2: RTP (Audio) on Port 5004
     private suspend fun listenForRtp() {
         val buffer = ByteArray(2048)
         val packet = DatagramPacket(buffer, buffer.size)
@@ -336,13 +360,13 @@ class AppService : Service() {
                 rtpSocket!!.receive(packet)
                 val length = packet.length
                 if (length > 0) {
-                    // Always treat port 5004 as Binary (RTP)
+                    // Pure RTP Binary
                     if (currentState == CallState.CONNECTED) {
                         handleRtpPacket(buffer, length)
                     }
                 }
             } catch (e: Exception) {
-                if (rtpSocket != null && !rtpSocket!!.isClosed) Log.e("VoIP", "RTP Receive Error", e)
+                if (isListening) Log.e("VoIP", "RTP Receive Error", e)
             }
         }
     }
@@ -352,7 +376,6 @@ class AppService : Service() {
         if (isDiscoveryActive) return
         isDiscoveryActive = true
 
-        // Listener for Discovery Broadcasts
         serviceScope.launch {
             try {
                 discoverySocket = DatagramSocket(DISCOVERY_PORT)
@@ -365,7 +388,6 @@ class AppService : Service() {
                     val senderIp = pkt.address.hostAddress
                     if (senderIp != getLocalIpAddress()) {
                         if (msg.startsWith(DISCOVERY_MSG_PREFIX)) {
-                            // Parse peer info
                             val payload = msg.removePrefix(DISCOVERY_MSG_PREFIX)
                             val parts = payload.split("|")
                             val port = parts.getOrNull(0)?.toIntOrNull() ?: 5060
@@ -376,7 +398,6 @@ class AppService : Service() {
                             val info = discoveredPeers[host]
                             val now = System.currentTimeMillis()
 
-                            // IF NEW or Changed: Trigger ICMP Ping (Scanning requirement)
                             if (info == null || info.port != port) {
                                 discoveredPeers[host] = PeerInfo(port, name, role, now)
                                 broadcastUpdate()
@@ -390,7 +411,6 @@ class AppService : Service() {
             } catch (e: Exception) {}
         }
 
-        // Broadcaster
         serviceScope.launch {
             while (isActive && isDiscoveryActive) {
                 try {
@@ -402,9 +422,7 @@ class AppService : Service() {
                         "BUYER" -> "Buyer"
                         else -> myRole
                     }
-                    // We advertise SIP Port (mySipPort).
-                    // RTP Port is implicitly 5004 for everyone in this system.
-                    val msg = "$DISCOVERY_MSG_PREFIX$mySipPort|$myName|$effectiveRole"
+                    val msg = "$DISCOVERY_MSG_PREFIX$myListeningPort|$myName|$effectiveRole"
                     val data = msg.toByteArray()
                     val pkt = DatagramPacket(data, data.size, InetAddress.getByName("255.255.255.255"), DISCOVERY_PORT)
                     DatagramSocket().use { it.send(pkt) }
@@ -413,7 +431,6 @@ class AppService : Service() {
             }
         }
 
-        // Cleanup stale peers
         serviceScope.launch {
             while (isActive) {
                 val now = System.currentTimeMillis()
@@ -434,7 +451,7 @@ class AppService : Service() {
     private fun executePing(ip: String) {
         serviceScope.launch(Dispatchers.IO) {
             try {
-                // Shell command to ping
+                Log.d("VoIP", "Pinging $ip for Network Scanning requirement...")
                 val process = Runtime.getRuntime().exec("ping -c 1 -w 1 $ip")
                 process.waitFor()
             } catch (e: Exception) {
@@ -472,7 +489,7 @@ class AppService : Service() {
                     resetToIdle("Call Rejected")
                 }
             } else if (requestLine.startsWith(SIP_BYE)) {
-                sendSipMessage(SIP_OK) // Acknowledge BYE
+                sendSipMessage(SIP_OK)
                 resetToIdle("Call Ended")
             }
         }
@@ -483,8 +500,6 @@ class AppService : Service() {
             try {
                 targetIpAddress = InetAddress.getByName(ip)
                 targetSipPort = port // SIP Port
-                // targetRtpPort is fixed at 5004
-
                 callerName = discoveredPeers[ip]?.name ?: "Remote User"
                 currentState = CallState.DIALING
                 updateStatus("Dialing $callerName...")
@@ -492,7 +507,6 @@ class AppService : Service() {
 
                 executePing(ip)
 
-                // Send SIP INVITE
                 for (i in 1..5) {
                     if (currentState != CallState.DIALING) break
                     sendSipMessage(SIP_INVITE)
@@ -527,7 +541,6 @@ class AppService : Service() {
         resetToIdle("Call Ended")
     }
 
-    // Sends Text SIP Messages via sipSocket (Port 5060)
     private fun sendSipMessage(methodType: String) {
         try {
             val targetHost = targetIpAddress?.hostAddress ?: "0.0.0.0"
@@ -535,11 +548,11 @@ class AppService : Service() {
 
             val sipMsg = buildString {
                 if (methodType.contains("SIP/2.0")) {
-                    append("$methodType\r\n") // Response
+                    append("$methodType\r\n")
                 } else {
-                    append("$methodType sip:$targetHost SIP/2.0\r\n") // Request
+                    append("$methodType sip:$targetHost SIP/2.0\r\n")
                 }
-                append("Via: SIP/2.0/UDP $myHost:$mySipPort;branch=z9hG4bK${System.currentTimeMillis()}\r\n")
+                append("Via: SIP/2.0/UDP $myHost:$myListeningPort;branch=z9hG4bK${System.currentTimeMillis()}\r\n")
                 append("From: \"$myName\" <sip:$myHost>;tag=${System.currentTimeMillis()}\r\n")
                 append("To: <sip:$targetHost>\r\n")
                 append("Call-ID: ${myHost.hashCode()}-${targetHost.hashCode()}@$myHost\r\n")
@@ -549,7 +562,7 @@ class AppService : Service() {
             }
 
             val data = sipMsg.toByteArray(Charset.defaultCharset())
-            // Send to target SIP port (5060)
+            // Send SIP logic via SIP Socket
             val packet = DatagramPacket(data, data.size, targetIpAddress, targetSipPort)
             sipSocket?.send(packet)
         } catch (e: Exception) {}
@@ -594,12 +607,14 @@ class AppService : Service() {
 
         updateStatus("Connected")
         broadcastUpdate()
+
+        // 1. UPGRADE FOREGROUND SERVICE (RESTORED FROM ORIGINAL)
         startCallNotification()
 
+        // 2. Start Audio
         serviceScope.launch { recordAndSendAudio() }
     }
 
-    // Sends Binary RTP Packets via rtpSocket (Port 5004)
     private suspend fun recordAndSendAudio() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
         val buffer = ByteArray(minBufSizeRecord)
@@ -612,14 +627,13 @@ class AppService : Service() {
                 val read = recorder.read(buffer, 0, buffer.size)
                 if (read > 0) {
                     val rtpPacket = createRtpPacket(buffer, read)
-                    // Send to target RTP port (5004)
-                    val packet = DatagramPacket(rtpPacket, rtpPacket.size, targetIpAddress, targetRtpPort)
+
+                    // SEND AUDIO VIA RTP SOCKET TO PORT 5004
+                    val packet = DatagramPacket(rtpPacket, rtpPacket.size, targetIpAddress, myRtpPort)
                     rtpSocket?.send(packet)
                 }
             }
-        } catch (e: Exception) {
-            Log.e("VoIP", "Audio Send Error", e)
-        } finally {
+        } catch (e: Exception) {} finally {
             try { recorder.stop(); recorder.release() } catch (e: Exception) {}
         }
     }
@@ -678,6 +692,8 @@ class AppService : Service() {
         updateStatus(msg)
         stopRingtone()
         notificationHelper.cancelIncomingCallNotification()
+
+        // DOWNGRADE FOREGROUND SERVICE (RESTORED FROM ORIGINAL)
         startStandbyForeground()
 
         try {
@@ -739,11 +755,9 @@ class AppService : Service() {
     override fun onDestroy() {
         isListening = false
         isDiscoveryActive = false
-
         sipSocket?.close()
         rtpSocket?.close()
         discoverySocket?.close()
-
         serviceScope.cancel()
         removeOrderListeners()
         stopRingtone()
